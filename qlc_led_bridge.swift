@@ -17,14 +17,20 @@ setbuf(stdout, nil)
 //      Feedback enabled. When a Virtual Console widget lights, QLC+ sends the
 //      widget's note here; the bridge paints the matching pad.
 //
-// Feedback convention: a NoteOn (velocity > 0) lights the pad ON_COLOR; a NoteOff
-// (or velocity 0) dims it to OFF_COLOR. Pad note numbers are the SMC-PAD's own
-// (bank A notes 4-19); the address of each pad's colour in flash is
-// 0x418 + (padNumber-1)*26.
+// Feedback convention: a NoteOn (velocity > 0) lights the pad full-bright; a
+// NoteOff (or velocity 0) dims it to its idle colour.
+//
+// Note numbers are the pad's own, measured 2026-08-29: within a bank the note
+// is 35 + padNumber counting from the bottom-left (PAD1 = 36, PAD13 = 48), and
+// PAD BANK moves the whole surface 16 notes up. The show uses two banks - the
+// hits on bank 1, the console's manual page on bank 2 - so this bridge paints
+// notes 36..67. The pad's flash keeps one 26-byte record per note slot, so a
+// note's colour address is 0x418 + (note - 36) * 26 for any of them.
 
-// The palette, physical pad 1..16 -> RGB, mirroring the console button colours
-// in tools/qlctool/qlctool/generate/smc_pad_colors.py. Each pad glows its colour
-// dimmed while idle and full-bright while its function is active.
+// The palette, note -> RGB, mirroring the console button colours in
+// tools/qlctool/qlctool/generate/smc_pad_colors.py. Each pad glows its colour
+// dimmed while idle and full-bright while its function is active. Keep the two
+// in step: the console paints the button, this paints the pad under the finger.
 let PAD_COLORS: [(UInt8, UInt8, UInt8)] = [
     (255, 255, 255),  // pad 1  Blanco Total
     (255,  40,  40),  // pad 2  Todo Negro
@@ -43,17 +49,43 @@ let PAD_COLORS: [(UInt8, UInt8, UInt8)] = [
     (255,   0, 255),  // pad 15 Flash Color
     (  0, 255, 255),  // pad 16 Color Beam
 ]
+// Bank 2 (PAD BANK): the console's manual page. Its bottom two rows are unused,
+// so they sit at the same faint grey as the free pad on bank 1.
+let FREE_PAD: (UInt8, UInt8, UInt8) = (20, 20, 20)
+let BANK2_COLORS: [(UInt8, UInt8, UInt8)] = [
+    FREE_PAD, FREE_PAD, FREE_PAD, FREE_PAD,          // pads 1-4  free
+    FREE_PAD, FREE_PAD, FREE_PAD, FREE_PAD,          // pads 5-8  free
+    (255, 255, 255),  // pad 9  Prisma Animacion
+    (150, 220, 255),  // pad 10 Humo Auto
+    (255, 140,   0),  // pad 11 Arcoiris Simultaneo
+    (255, 220,   0),  // pad 12 Arcoiris Pasos
+    (255,   0, 128),  // pad 13 Rueda Colores
+    (128,   0, 255),  // pad 14 Rueda Mezcla
+    (  0, 128, 255),  // pad 15 Movimientos Cabezas
+    (  0, 255, 128),  // pad 16 Gobo Animacion
+]
 let DIM = 6   // idle brightness = colour / DIM
 
-func padAddress(_ pad: Int) -> Int { 0x418 + (pad - 1) * 26 }  // pad 1..16
-func noteToPad(_ note: UInt8) -> Int? {            // BT layout: pad N sends note 35+N
-    let pad = Int(note) - 35
-    return (1...16).contains(pad) ? pad : nil
+let FIRST_NOTE = 36           // PAD1 on bank 1
+let LAST_NOTE = FIRST_NOTE + 31  // PAD16 on bank 2
+
+// One 26-byte record per note slot, so the same arithmetic covers both banks.
+func noteAddress(_ note: Int) -> Int { 0x418 + (note - FIRST_NOTE) * 26 }
+
+func paletteColor(_ note: Int) -> (UInt8, UInt8, UInt8)? {
+    guard (FIRST_NOTE...LAST_NOTE).contains(note) else { return nil }
+    let offset = note - FIRST_NOTE
+    return offset < 16 ? PAD_COLORS[offset] : BANK2_COLORS[offset - 16]
 }
-func full(_ pad: Int) -> (UInt8, UInt8, UInt8) { PAD_COLORS[pad - 1] }
-func dim(_ pad: Int) -> (UInt8, UInt8, UInt8) {
-    let c = PAD_COLORS[pad - 1]
-    return (c.0 / UInt8(DIM), c.1 / UInt8(DIM), c.2 / UInt8(DIM))
+
+func dimmed(_ c: (UInt8, UInt8, UInt8)) -> (UInt8, UInt8, UInt8) {
+    (c.0 / UInt8(DIM), c.1 / UInt8(DIM), c.2 / UInt8(DIM))
+}
+
+/// "bank 2 pad 13" - what the operator sees, for the log line.
+func padLabel(_ note: Int) -> String {
+    let offset = note - FIRST_NOTE
+    return offset < 16 ? "pad \(offset + 1)" : "bank 2 pad \(offset - 15)"
 }
 
 func le(_ v: Int, _ w: Int) -> [UInt8] { (0..<w).map { UInt8((v >> (8*$0)) & 0xFF) } }
@@ -123,10 +155,10 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             } else {
                 t.invalidate(); self.ready = true
                 print("session ready - painting idle palette, QLC+ feedback live")
-                // Paint every pad its dim idle colour.
-                for pad in 1...16 {
-                    let c = dim(pad)
-                    self.pad?.writeValue(Data(colorLogical(padAddress(pad), c.0, c.1, c.2)),
+                // Paint every pad of both banks its dim idle colour.
+                for note in FIRST_NOTE...LAST_NOTE {
+                    guard let c = paletteColor(note).map(dimmed) else { continue }
+                    self.pad?.writeValue(Data(colorLogical(noteAddress(note), c.0, c.1, c.2)),
                                          for: ch, type: .withoutResponse)
                 }
                 // keep-alive poll to hold the session
@@ -163,13 +195,13 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         while i + 2 < b.count {
             let status = b[i] & 0xF0
             guard status == 0x90 || status == 0x80 else { i += 1; continue }
-            let note = b[i+1], vel = b[i+2]
-            if let pad = noteToPad(note) {
+            let note = Int(b[i+1]), vel = b[i+2]
+            if let colour = paletteColor(note) {
                 let on = (status == 0x90 && vel > 0)
-                let c = on ? full(pad) : dim(pad)
-                print("MIDI in: note \(note) -> pad \(pad) \(on ? "ACTIVE" : "idle")" +
+                let c = on ? colour : dimmed(colour)
+                print("MIDI in: note \(note) -> \(padLabel(note)) \(on ? "ACTIVE" : "idle")" +
                       (ready ? "" : " (session NOT ready, dropped)"))
-                DispatchQueue.main.async { self.write(padAddress(pad), c.0, c.1, c.2) }
+                DispatchQueue.main.async { self.write(noteAddress(note), c.0, c.1, c.2) }
             }
             i += 3
         }

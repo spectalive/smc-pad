@@ -22,12 +22,31 @@ reference for the tools and the wire protocol.
 ## The MIDI side (input - solved, shipped)
 
 Over USB the pad is three CoreMIDI ports: `SMC-PAD-Master` (pads/knobs),
-`SMC-PAD-Private` (config/firmware), `Puerto 3` (the 3.5mm MIDI out). Pads send
-notes on MIDI channel 10 (top-left = lowest note 4, bottom row 16-19; SHIFT
-adds 48), encoders CC 30-37 on channel 1, the five buttons CC 25-29 on
-channel 1. QLC+ must run its MIDI input in omni ("1-16") mode. The full map is
-`QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi` and the generator wiring is
-`tools/qlctool/qlctool/generate/smc_pad_bindings.py`.
+`SMC-PAD-Private` (config/firmware), `Puerto 3` (the 3.5mm MIDI out); over
+Bluetooth it is a fourth, `SMC-PAD Bluetooth`, carrying the same messages.
+
+Measured 2026-08-29 with `midicap.swift`, owner pressing:
+
+- Pads send notes on **MIDI channel 10**, numbered as the panel is printed:
+  PAD1 bottom-left, PAD13 top-left. Within a bank the note is **35 + pad**
+  (PAD1 = 36, PAD13 = 48, PAD16 = 51).
+- **PAD BANK** moves the whole surface up one bank of 16 notes - PAD1 answered
+  52 - and the pad *remembers* which bank it is on across power cycles. The
+  show uses two: the hits on bank 1, the console's manual page on bank 2.
+- **SHIFT sends nothing.** It picks the functions silkscreened on the pads
+  (SWING, LATCH, SYNC, TAP TEMPO), which never leave the device. Nothing on a
+  console can be bound to it.
+- `<` and `>` send CC 25/26 and do **not** change the bank, so they are safe as
+  console page arrows. The other three edge buttons are CC 27/28/29.
+- Encoders send CC 30-37 absolute, on channel 1.
+
+QLC+ must run its MIDI input in omni ("1-16") mode, or it never ORs the MIDI
+channel into the channel number and every pad binding addresses the wrong
+control. The map lives in
+`tools/qlctool/qlctool/generate/smc_pad_device.py`; the bindings
+(`smc_pad_bindings.py`) and the profile `QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi`
+are both derived from it - regenerate the profile with
+`qlctool input-profile`, never by hand.
 
 ## The LED side (output - protocol cracked, colour payload open)
 
