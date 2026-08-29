@@ -124,7 +124,30 @@ checkable, validated against real captured packets:
 
 `reference/color_cmd.py` generates both wire forms for any `(pad, r, g, b)`.
 
-### The one thing still not solved: the device flash address
+### SOLVED (2026-08-29): writes need the app's full connect session first
+
+The LEDs now change from our own code. The missing piece was not the bytes -
+it was the **session**. A one-shot colour write is ignored; the pad only
+accepts writes after a client has replayed the desktop app's whole connect
+handshake on that same MIDI connection. Captured from the official app with
+MIDI Monitor's output spy (`reference/captura.mmon`), the unlock is:
+
+1. Discovery: `F0 00 32 45 00 00 00 40 7F F7`.
+2. **Read the entire config**: a run of `F0 00 32 0D 41 ...` read requests with
+   incrementing 32-bit addresses (0x000, 0x771, 0xF62, 0x1753, ...), each
+   answered by a `0D 49` config chunk. Reading the whole config is what unlocks
+   writes.
+3. Then the colour write `F0 00 32 09 59 ...` is accepted and the LED changes
+   instantly; the pad replies `F0 00 32 01 08 ... F7` (OK).
+4. Keep the connection alive with the `0D 41` poll (~2/s).
+
+`replay.swift` does exactly this: it replays the captured unlock frames
+(`reference/replay_frames.txt`), then writes a colour, then polls. Confirmed
+live - a pad changed colour the instant the write landed. Run:
+`swift replay.swift <flash-address> <r> <g> <b>` (e.g. `... 1048 0 0 255` sets
+address 0x418 blue).
+
+### The remaining tidy-up (not blockers)
 
 Every derived colour command was sent (USB SysEx to the pad's CoreMIDI
 destination - the same `MIDISend` path `flutter_midi_command` uses - and raw to
