@@ -100,16 +100,50 @@ channels are 8-bit (0xF0, 0xFF...), so the app's `core/usb/sysex_codec.dart`
 **7-bit re-encodes** the payload before sending. The exact wire bytes need that
 codec.
 
-### The one way left to finish
+### The wire protocol - solved (2026-08-29, via Codex)
 
-Recover `sysex_codec.dart`'s 8-bit->7-bit transform and the SysEx command
-wrapper from the **macOS** App snapshot
-(`Midi Suite.app/Contents/Frameworks/App.framework/Versions/A/App`, arm64
-slice, Dart snapshot `ace654289f5abc240509fc941453ebc5`). Blutter here only
-parses ELF, not the Mach-O snapshot, so this needs an iOS/macOS-capable Dart
-AOT decompiler (or a USB bus capture of the app writing a colour). With the
-transform known, the bridge sends the colour over **USB** SysEx - no BLE, the
-pad is input to QLC+ and LED out on one cable.
+The macOS App snapshot (Dart 3.12.2) WAS decompiled, with Blutter's Mach-O
+branch (PR 204) patched for a macOS target. The decompiled
+`core/usb/sysex_codec.dart`, `midi_transport.dart`, `usb_connect.dart` are in
+`reference/mac-decompile/`. From them the full wire format is known and, where
+checkable, validated against real captured packets:
+
+- **Logical packet**: `00 59 <cmd> <len24-le> <data...> <checksum>`, where
+  `checksum = (~sum(data)) & 0xFF`. (An earlier pass read the constant as
+  `0xB2`; decoding the pad's real status and OK packets proved it is `0x59` -
+  `toMidi([00,59,...])` reproduces the device's real `F0 00 32 ...` header.)
+- **USB transport**: `SysexCodec.toMidi` bit-packs that whole logical packet
+  LSB-first into 7-bit bytes between `F0` and `F7`. Round-trips exactly against
+  the captured status frame `F0 00 32 0D 21 ...` and the OK frame
+  `F0 00 32 01 08 ... F7` (regression-tested in `reference/test_color_cmd.py`).
+- **Colour write**: `_wColor` -> `_write(5, address, [R,G,B])` ->
+  `flashWrite`, giving data `05 <address-le32> 03 00 00 R G B`. No handshake
+  precedes it; no separate mode packet exists in the code.
+- **BLE**: `makeWritePacket` emits the same logical packet raw to `AE41`
+  (no 7-bit transform).
+
+`reference/color_cmd.py` generates both wire forms for any `(pad, r, g, b)`.
+
+### The one thing still not solved: the device flash address
+
+Every derived colour command was sent (USB SysEx to the pad's CoreMIDI
+destination - the same `MIDISend` path `flutter_midi_command` uses - and raw to
+BLE `AE41`), app open and closed, owner watching: the LED never changed, even
+though the desktop app changes it instantly over the same CoreMIDI transport.
+
+The remaining unknown is the **address** in `_write(5, address, rgb)`.
+`color_cmd.py` computes it as `profile*3539 + 211 + pad_index*26 + 5` - but
+3539 is the `.spc` **file** size, so that is a file offset, not the device
+flash address. In the app the address is a field on the pad object, loaded
+from the device's own config at connect. The real per-pad addresses therefore
+live in the config the pad streams on connect (`appcolor.log` has that stream:
+48-byte records like `48 10 07 40 3F ...`); they must be decoded from there, or
+captured from the app's actual write with a CoreMIDI output spy (snoize
+MIDISpy - its driver would not load unapproved on Apple Silicon in this
+session).
+
+With the correct address the colour command is complete and the bridge sends
+it over USB - no BLE, the pad stays a QLC+ input and an LED output on one cable.
 
 ## The bridge, once the packet is known
 
