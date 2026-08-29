@@ -174,10 +174,31 @@ swift qlc_led_bridge.swift
 
 It does two things: holds the pad's LED session over BLE GATT (replays the
 unlock, then keeps the session alive), and publishes a virtual CoreMIDI
-destination **"SMC-PAD LED Bridge"**. In QLC+, Inputs/Outputs tab, take the
-universe the pad is patched to and set its **Output** to `SMC-PAD LED Bridge`
-with **Feedback** enabled. Now when a Virtual Console widget becomes active,
-QLC+ sends the widget's note to the bridge and the matching pad lights.
+destination **"SMC-PAD LED Bridge"**. In QLC+, Inputs/Outputs tab, on the universe the pad is patched to, add
+`SMC-PAD LED Bridge` and — this is the part the UI makes easy to miss — make it
+the universe's **Feedback** patch, not just an Output. QLC+ only sends widget
+feedback if a `<Feedback>` patch exists; the on-screen "eye" toggle did not
+reliably create one here, so the reliable fix is to add it in the saved `.qxw`:
+
+```xml
+<Universe Name="Universe 1" ID="0">
+  <Input Plugin="MIDI" Name="ble device" Line="3"><PluginParameters midichannel="16"/></Input>
+  <Output Plugin="DMX USB" Name="FT232R USB UART (...)" Line="0"/>
+  <Feedback Plugin="MIDI" Name="SMC-PAD LED Bridge" Line="N"/>
+</Universe>
+```
+
+(`Line` is the plugin's output line for the bridge on this machine; copy it
+from the `<Output ... Name="SMC-PAD LED Bridge">` line QLC+ writes when you add
+it.) Then reload the workspace. Now when a Virtual Console widget becomes
+active QLC+ sends the widget's note to the bridge and the matching pad lights.
+Confirmed working end to end (the bridge logs `MIDI in ... -> pad addr ...` and
+the pad changes).
+
+Two gotchas that cost time: the bridge output's **MIDI Channel must be omni
+("1-16")** so QLC+ feedback carries the pad's real channel, and the bridge's
+CoreMIDI endpoint is recreated on every restart — if you restart the daemon,
+re-select it in QLC+ (or reload the workspace).
 
 Verified end to end: a NoteOn to the virtual port paints the pad over Bluetooth
 (`swift midisend2.swift "SMC-PAD LED Bridge" 90 10 7F` lit pad 1 white). The

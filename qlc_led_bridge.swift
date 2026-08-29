@@ -22,20 +22,38 @@ setbuf(stdout, nil)
 // (bank A notes 4-19); the address of each pad's colour in flash is
 // 0x418 + (padNumber-1)*26.
 
-let ON_COLOR: (UInt8, UInt8, UInt8) = (255, 255, 255)   // active widget = white
-let OFF_COLOR: (UInt8, UInt8, UInt8) = (0, 0, 0)        // inactive = off
+// The palette, physical pad 1..16 -> RGB, mirroring the console button colours
+// in tools/qlctool/qlctool/generate/smc_pad_colors.py. Each pad glows its colour
+// dimmed while idle and full-bright while its function is active.
+let PAD_COLORS: [(UInt8, UInt8, UInt8)] = [
+    (255, 255, 255),  // pad 1  Blanco Total
+    (255,  40,  40),  // pad 2  Todo Negro
+    (255, 170,  60),  // pad 3  Charla
+    ( 20,  20,  20),  // pad 4  free - faint grey
+    ( 40, 255,  60),  // pad 5  AUTO
+    (255,  40, 180),  // pad 6  Fiesta
+    (255,  90,   0),  // pad 7  Locura
+    ( 40, 120, 255),  // pad 8  Tranquilo
+    (  0, 220, 255),  // pad 9  Humo Vertical
+    (150, 220, 255),  // pad 10 Humo
+    (255, 255,   0),  // pad 11 Strobo
+    (255, 200,   0),  // pad 12 Strobo Medio
+    (255, 255, 255),  // pad 13 Flash 100%
+    (255, 225, 180),  // pad 14 Flash 50%
+    (255,   0, 255),  // pad 15 Flash Color
+    (  0, 255, 255),  // pad 16 Color Beam
+]
+let DIM = 6   // idle brightness = colour / DIM
 
-// Physical pad number (1..16) -> MIDI note (from the captured input profile):
-// rows top-to-bottom are pads 13-16, 9-12, 5-8, 1-4 with notes 4-7, 8-11,
-// 12-15, 16-19. So pad N's note and its flash address:
-func noteToAddress() -> [UInt8: Int] {
-    let padForNote: [UInt8: Int] = [
-        4:13, 5:14, 6:15, 7:16, 8:9, 9:10, 10:11, 11:12,
-        12:5, 13:6, 14:7, 15:8, 16:1, 17:2, 18:3, 19:4,
-    ]
-    var map: [UInt8: Int] = [:]
-    for (note, pad) in padForNote { map[note] = 0x418 + (pad - 1) * 26 }
-    return map
+func padAddress(_ pad: Int) -> Int { 0x418 + (pad - 1) * 26 }  // pad 1..16
+func noteToPad(_ note: UInt8) -> Int? {            // BT layout: pad N sends note 35+N
+    let pad = Int(note) - 35
+    return (1...16).contains(pad) ? pad : nil
+}
+func full(_ pad: Int) -> (UInt8, UInt8, UInt8) { PAD_COLORS[pad - 1] }
+func dim(_ pad: Int) -> (UInt8, UInt8, UInt8) {
+    let c = PAD_COLORS[pad - 1]
+    return (c.0 / UInt8(DIM), c.1 / UInt8(DIM), c.2 / UInt8(DIM))
 }
 
 func le(_ v: Int, _ w: Int) -> [UInt8] { (0..<w).map { UInt8((v >> (8*$0)) & 0xFF) } }
@@ -60,7 +78,6 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var pad: CBPeripheral?
     var writeChar: CBCharacteristic?
     var ready = false
-    let map = noteToAddress()
     let unlock = unlockPackets()
     var midiClient = MIDIClientRef()
     var virtualDest = MIDIEndpointRef()
@@ -105,7 +122,13 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
                 self.pad?.writeValue(Data(self.unlock[i]), for: ch, type: .withoutResponse); i += 1
             } else {
                 t.invalidate(); self.ready = true
-                print("session ready - QLC+ feedback will now paint pads")
+                print("session ready - painting idle palette, QLC+ feedback live")
+                // Paint every pad its dim idle colour.
+                for pad in 1...16 {
+                    let c = dim(pad)
+                    self.pad?.writeValue(Data(colorLogical(padAddress(pad), c.0, c.1, c.2)),
+                                         for: ch, type: .withoutResponse)
+                }
                 // keep-alive poll to hold the session
                 let poll = self.unlock.first(where: { $0.count > 3 && $0[2] == 0x23 }) ?? self.unlock[1]
                 Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
@@ -141,10 +164,12 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             let status = b[i] & 0xF0
             guard status == 0x90 || status == 0x80 else { i += 1; continue }
             let note = b[i+1], vel = b[i+2]
-            if let addr = map[note] {
+            if let pad = noteToPad(note) {
                 let on = (status == 0x90 && vel > 0)
-                let c = on ? ON_COLOR : OFF_COLOR
-                DispatchQueue.main.async { self.write(addr, c.0, c.1, c.2) }
+                let c = on ? full(pad) : dim(pad)
+                print("MIDI in: note \(note) -> pad \(pad) \(on ? "ACTIVE" : "idle")" +
+                      (ready ? "" : " (session NOT ready, dropped)"))
+                DispatchQueue.main.async { self.write(padAddress(pad), c.0, c.1, c.2) }
             }
             i += 3
         }
