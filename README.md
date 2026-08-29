@@ -163,6 +163,29 @@ replies and a pad turned white over Bluetooth. So the LED feedback can be fully
 wireless - the pad is a QLC+ input over BT-MIDI and an LED output over BT-GATT
 at the same time, no cable.
 
+### The QLC+ bridge (working)
+
+`qlc_led_bridge.swift` is the daemon that makes the feedback real. Run it from
+this directory (it reads `reference/gatt_unlock.txt`):
+
+```bash
+swift qlc_led_bridge.swift
+```
+
+It does two things: holds the pad's LED session over BLE GATT (replays the
+unlock, then keeps the session alive), and publishes a virtual CoreMIDI
+destination **"SMC-PAD LED Bridge"**. In QLC+, Inputs/Outputs tab, take the
+universe the pad is patched to and set its **Output** to `SMC-PAD LED Bridge`
+with **Feedback** enabled. Now when a Virtual Console widget becomes active,
+QLC+ sends the widget's note to the bridge and the matching pad lights.
+
+Verified end to end: a NoteOn to the virtual port paints the pad over Bluetooth
+(`swift midisend2.swift "SMC-PAD LED Bridge" 90 10 7F` lit pad 1 white). The
+note->pad->flash-address map is in the daemon: pad N's colour is at
+`0x418 + (N-1)*26`, and bank-A pad notes 4-19 map to pads 13-16 / 9-12 / 5-8 /
+1-4. Default colours are white when active, off when inactive - edit `ON_COLOR`
+/ `OFF_COLOR` (or add a per-note colour table) for a show palette.
+
 ### The remaining tidy-up (not blockers)
 
 Every derived colour command was sent (USB SysEx to the pad's CoreMIDI
