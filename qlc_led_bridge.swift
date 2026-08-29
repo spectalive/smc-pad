@@ -6,6 +6,14 @@ setbuf(stdout, nil)
 
 // QLC+ -> SMC-PAD LED bridge (Bluetooth GATT).
 //
+// ⚠️ DO NOT RUN until TODO.md's open item on this file is closed. On
+// 2026-08-29 the pad's own configuration drifted while this daemon was running
+// - pad notes fell by one and at least one pad changed MIDI channel, with the
+// owner never opening the vendor app - and this is the only thing that writes
+// to the device's flash. The colour address below is a constant; if the pad's
+// active profile or bank moves it, these writes land on configuration fields
+// instead of colour. Unproven, but the pad is the only one we have.
+//
 // QLC+ cannot light the pad's LEDs itself (they are not MIDI, and the pad only
 // accepts colour writes inside a session). This daemon bridges the gap:
 //
