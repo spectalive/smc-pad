@@ -64,31 +64,52 @@ packet. Worked examples the tool produces:
 2. **Unplug USB.** With USB connected the pad routes MIDI over USB and the BLE
    side goes silent; BLE-only, presses arrive on the `7772E5DB` char.
 
-### What is NOT solved
+### The colour ENCODING - solved (2026-08-29)
 
-The colour path is `BleManager.sendColorData` -> `writeData(list, cmd)` ->
-`makeWritePacket` = `[0xB2,0x44] + data + checksum`, where `sendColorData`
-builds a 3-value list. Every guess for those three bytes (`[idx,a,b]`,
-`[idx,r,g,b]`, a full 16-pad frame, values 0-127 and 0-255, on `AE41` and
-`AE01`) left the pads dark - owner watching, confirmed. Reads drew no config
-dump on `AE42`. So the exact bytes after `B2 44` are unresolved.
+The real desktop editor is **MidiSuite for macOS** (`MidiSuite_new.dmg` on
+`m-vave.com`, a Flutter app with `flutter_midi_command` + `universal_ble`; the
+earlier CubeSuite is a looper tool and does not know the pad). Its
+"Export preset (.spc)" writes the pad config to a file; `reference/preset4.spc`
+is a captured export and `reference/decode_preset.py` parses it. Each pad's
+colour is one record:
 
-### The two ways to finish
+```
+09 <id> 00 7F <R> <G> <B> FF
+  id    = pad MIDI note (bank A 0x04-0x13, bank B 0x14-0x23)
+  R,G,B = full 8-bit channels 0-255   (F0 F0 00 yellow, F0 00 F0 magenta)
+```
 
-1. **Capture one real colour packet.** Run MidiSuite (Android/iOS) against the
-   pad, set a pad colour, and sniff the `AE41` write (nRF Sniffer, or Android
-   HCI snoop log). That one packet decodes the format. Needs the app on a
-   phone.
-2. **Finish the reverse.** The Blutter output has the answer in
-   `writeData`/`sendColorData`/`pad_widget.dart`; the blocker was matching the
-   3 values to (pad, colour) without symbol names.
+Confirmed against the editor's on-screen colours (the displayed yellow pads and
+the magenta pad 16 matched `F0F000` / `F000F0` in the file byte-for-byte). So
+the colour model is plain per-pad 24-bit RGB, keyed by note number.
 
-### Dead end checked
+### What is still NOT solved: applying it live
 
-There is **no desktop editor for the SMC-PAD**. CubeSuite for macOS
-(`m-vave.com` download) is a looper/guitar-pedal tool (firmware, IR, amp) and
-does not know the pad; the pad's only editor is the mobile MidiSuite. So the
-colour packet cannot be captured over USB from a Mac app.
+The physical LEDs work (the pad shows the app's colours), but nothing this repo
+sends makes them change:
+
+- The desktop app drives the LEDs over **USB** as M-VAVE SysEx
+  (`F0 00 32 ...`), via `flutter_midi_command`. CoreMIDI capture only sees the
+  pad->Mac direction, so the app's outgoing colour SysEx was not captured.
+- Raw writes of the `09 id 00 7F RGB FF` record to BLE `AE41` (and `AE01`),
+  with and without the `B2 44` frame, with USB plugged and unplugged, app open
+  and closed - all left the LEDs unchanged (owner confirmed).
+
+The likely reason is the codec: SysEx data bytes must be < 0x80, but the RGB
+channels are 8-bit (0xF0, 0xFF...), so the app's `core/usb/sysex_codec.dart`
+**7-bit re-encodes** the payload before sending. The exact wire bytes need that
+codec.
+
+### The one way left to finish
+
+Recover `sysex_codec.dart`'s 8-bit->7-bit transform and the SysEx command
+wrapper from the **macOS** App snapshot
+(`Midi Suite.app/Contents/Frameworks/App.framework/Versions/A/App`, arm64
+slice, Dart snapshot `ace654289f5abc240509fc941453ebc5`). Blutter here only
+parses ELF, not the Mach-O snapshot, so this needs an iOS/macOS-capable Dart
+AOT decompiler (or a USB bus capture of the app writing a colour). With the
+transform known, the bridge sends the colour over **USB** SysEx - no BLE, the
+pad is input to QLC+ and LED out on one cable.
 
 ## The bridge, once the packet is known
 
