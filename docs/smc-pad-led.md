@@ -72,11 +72,17 @@ device:
 - The pad advertises in Bluetooth pairing mode; once **bonded** it stops
   advertising and must be retrieved with
   `retrieveConnectedPeripherals(withServices:[AE40])`, not a scan.
-- **USB must be unplugged.** With USB connected the pad routes its MIDI over
-  USB and the BLE side is silent. BLE-only, the pad streams its button presses
-  as BLE-MIDI on characteristic `7772E5DB-3868-4112-A1A9-F2669D106BF3`
-  (e.g. a press = `80 80 99 16 7F`, NoteOn ch10). So the return channel is
-  proven live - the transport works both ways.
+- BLE-only, the pad streams its button presses as BLE-MIDI on characteristic
+  `7772E5DB-3868-4112-A1A9-F2669D106BF3` (e.g. a press = `80 80 99 16 7F`,
+  NoteOn ch10). So the return channel is proven live - the transport works both
+  ways.
+
+  This once read "**USB must be unplugged**, with USB connected the pad routes
+  its MIDI over USB and the BLE side is silent". **That is wrong**, corrected
+  2026-08-29: with the USB cable in and all three `SINCO` ports enumerated, the
+  same presses still arrived on the `SMC-PAD Bluetooth` CoreMIDI source. The
+  pad sends on every transport it has open at once. What does need the cable is
+  MidiSuite, which only configures the pad over USB.
 - Writes to `AE41` are accepted with no error. Packet framing verified from
   the decompile: `[0xB2, type] + payload + checksum`, where type is `0x44`
   write / `0x46` read / `0x22` name-version, and
