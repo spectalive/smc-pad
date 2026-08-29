@@ -95,9 +95,25 @@ func colorLogical(_ addr: Int, _ r: UInt8, _ g: UInt8, _ b: UInt8) -> [UInt8] {
     return [0x00,0x59,0x22] + le(d.count,3) + d + [ck]
 }
 func unlockPackets() -> [[UInt8]] {
-    // gatt_unlock.txt sits next to this file's reference/ dir; try a couple paths.
-    for p in ["reference/gatt_unlock.txt", "gatt_unlock.txt",
-              (CommandLine.arguments.dropFirst().first ?? "")] where !p.isEmpty {
+    // Where gatt_unlock.txt can be, in the order worth trying:
+    //  - inside our own .app bundle, which is how install-bridge.sh ships it.
+    //    This one matters beyond tidiness: macOS only shows the Bluetooth
+    //    permission prompt to an app launched from the Finder, and `open` passes
+    //    no arguments - so a build that could only be told its data file on the
+    //    command line could never be granted Bluetooth at all.
+    //  - an explicit path as the first argument (what the launchd agent passes).
+    //  - relative to the working directory, for `swift qlc_led_bridge.swift`
+    //    run straight out of tools/smc-pad.
+    let exeDir = URL(fileURLWithPath: CommandLine.arguments[0])
+        .deletingLastPathComponent()
+    let candidates = [
+        exeDir.appendingPathComponent("../Resources/gatt_unlock.txt").path,
+        exeDir.appendingPathComponent("gatt_unlock.txt").path,
+        CommandLine.arguments.dropFirst().first ?? "",
+        "reference/gatt_unlock.txt",
+        "gatt_unlock.txt",
+    ]
+    for p in candidates where !p.isEmpty {
         if let t = try? String(contentsOfFile: p, encoding: .utf8) {
             return t.split(separator: "\n").map { $0.split(separator: " ").compactMap { UInt8($0, radix: 16) } }.filter { !$0.isEmpty }
         }

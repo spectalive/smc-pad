@@ -184,8 +184,34 @@ at the same time, no cable.
 
 ### The QLC+ bridge (working)
 
-`qlc_led_bridge.swift` is the daemon that makes the feedback real. Run it from
-this directory (it reads `reference/gatt_unlock.txt`):
+`qlc_led_bridge.swift` is the daemon that makes the feedback real. For a machine
+that runs the show, install it once and forget it:
+
+```bash
+./install-bridge.sh
+```
+
+That compiles it, wraps it in a signed `.app` under
+`~/Library/Application Support/Vibra/`, and registers a launchd agent that
+starts it at login and restarts it if it dies (verified 2026-08-29 by killing
+it: launchd brought it back and it reconnected to the pad). The script's own
+comments carry the three traps it exists to avoid.
+
+**The one that will catch you: Bluetooth permission.** macOS gates Bluetooth
+behind TCC, and a launchd agent cannot show the prompt - it starts, publishes
+its MIDI port, logs nothing wrong, and silently never connects. The tell is a
+log that stops after `bridge running` with no `pad connected` line. Fix it by
+opening the app once from the Finder
+(`open "~/Library/Application Support/Vibra/Vibra LED Bridge.app"`), granting
+Bluetooth, then `launchctl kickstart -k gui/$UID/com.vibra.smc-pad-led-bridge`.
+
+**And: restarting the bridge costs you QLC+'s feedback until you reload.** The
+virtual MIDI endpoint is recreated with a new identity on every start, and QLC+
+resolved its feedback patch when it loaded the workspace. The show keeps
+running; the pads just stop updating until the workspace is reloaded.
+
+To run it in the foreground instead, from this directory (it finds
+`reference/gatt_unlock.txt` relative to the working directory):
 
 ```bash
 swift qlc_led_bridge.swift
