@@ -63,10 +63,49 @@ cannot be wired directly. A small macOS daemon would:
 The pad would stay a USB-MIDI **input** to QLC+ and a BLE **output** from the
 daemon at the same time.
 
-## Status
+## Live BLE session, 2026-08-29 (what worked and what did not)
 
-Blocked on one physical step to finish the map: the pad has to be put in
-Bluetooth mode so the Mac can connect and the colour packet can be confirmed
-byte for byte against the lit pad. Until the bridge exists, the console's
-state lives on the laptop screen and the pad is a blind trigger surface -
-which is fine for the fixed-position hits and states it is mapped to.
+Connected to the pad from the Mac over BLE with a CoreBluetooth tool
+(`bletool.swift` in scratch), no phone or app. Confirmed against the real
+device:
+
+- The pad advertises in Bluetooth pairing mode; once **bonded** it stops
+  advertising and must be retrieved with
+  `retrieveConnectedPeripherals(withServices:[AE40])`, not a scan.
+- **USB must be unplugged.** With USB connected the pad routes its MIDI over
+  USB and the BLE side is silent. BLE-only, the pad streams its button presses
+  as BLE-MIDI on characteristic `7772E5DB-3868-4112-A1A9-F2669D106BF3`
+  (e.g. a press = `80 80 99 16 7F`, NoteOn ch10). So the return channel is
+  proven live - the transport works both ways.
+- Writes to `AE41` are accepted with no error. Packet framing verified from
+  the decompile: `[0xB2, type] + payload + checksum`, where type is `0x44`
+  write / `0x46` read / `0x22` name-version, and
+  `checksum = (~sum_of_preceding_bytes) & 0xFF`. There are only these three
+  packet builders - **no separate "mode" command**, so the app's colour write
+  is the same `0xB2 0x44` write this tool sends.
+
+**Still unsolved: the colour payload.** Every `B2 44 ...` colour guess tried
+(3-byte `[idx, a, b]`, 4-byte `[idx, r, g, b]`, a full 16-pad frame, values
+0-127 and 0-255, on both `AE41` and `AE01`) left the pads dark - owner
+watching, confirmed "no". Config-read requests (`B2 46 ...`) drew no dump on
+`AE42`. So the exact bytes after `B2 44` are wrong, and the meaning of
+`sendColorData`'s three values (buried in `writeData`'s multi-arg assembly and
+un-named object fields in the Dart AOT snapshot) is not yet decoded.
+
+## Status and the honest next step
+
+The transport is fully cracked and reachable; the colour encoding is not. The
+two reliable ways to close it, in order of certainty:
+
+1. **Capture one real colour packet.** Run MidiSuite (Android/iOS) against the
+   pad and sniff the `AE41` write when a pad colour is set - that one packet
+   decodes the whole format. Needs the app on a phone; a BLE sniffer (nRF
+   Sniffer, or Android's HCI snoop log) reads it.
+2. **Finish reversing `writeData` + `sendColorData`** in the Blutter output
+   (`out_blutter/asm/musical_instruments/`) to derive the three payload bytes
+   analytically. Slower and less certain without symbol names.
+
+Until then the console's state lives on the laptop screen and the pad is a
+blind trigger surface - fine for the fixed-position hits and states it is
+mapped to. The bridge daemon design above still holds; it only needs the
+confirmed colour packet to be written.
