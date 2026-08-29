@@ -147,6 +147,22 @@ live - a pad changed colour the instant the write landed. Run:
 `swift replay.swift <flash-address> <r> <g> <b>` (e.g. `... 1048 0 0 255` sets
 address 0x418 blue).
 
+### Bluetooth (wireless) LED feedback also works - via GATT
+
+The desktop app configures only over USB, and the pad's BT-MIDI CoreMIDI
+endpoint does NOT carry the config/colour protocol (a MIDI session replay to it
+draws zero replies). But over Bluetooth the colour path is **GATT**, exactly as
+the Android app uses it: service `AE40`, write to `AE41`, notify on `AE42`. The
+same session unlock applies - write the logical unlock packets (the USB unlock
+frames decoded back to logical `00 59 ...` form, `reference/gatt_unlock.txt`) to
+`AE41`, and the pad answers on `AE42`; then write the colour logical packet
+`00 59 22 <len24> 05 <addr32> 03 00 00 R G B <cksum>` to `AE41`.
+
+`gatt_replay.swift` does this and was confirmed live: the unlock drew 109 `AE42`
+replies and a pad turned white over Bluetooth. So the LED feedback can be fully
+wireless - the pad is a QLC+ input over BT-MIDI and an LED output over BT-GATT
+at the same time, no cable.
+
 ### The remaining tidy-up (not blockers)
 
 Every derived colour command was sent (USB SysEx to the pad's CoreMIDI
