@@ -109,3 +109,15 @@ Until then the console's state lives on the laptop screen and the pad is a
 blind trigger surface - fine for the fixed-position hits and states it is
 mapped to. The bridge daemon design above still holds; it only needs the
 confirmed colour packet to be written.
+
+The tools that produced all of the above, plus the byte-level protocol
+reference, are in [`../tools/smc-pad/`](../tools/smc-pad/).
+
+### Dead end checked (2026-08-29)
+
+There is no desktop editor for the SMC-PAD. CubeSuite for macOS (the only
+desktop tool on `m-vave.com`) is a looper / guitar-pedal editor - firmware,
+IR, amp - and carries no reference to the pad. The pad's only configurator is
+the mobile MidiSuite, so the colour packet cannot be captured over USB from a
+Mac application; it has to come from the phone app or from finishing the
+decompile.
