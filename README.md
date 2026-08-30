@@ -17,6 +17,7 @@ reference for the tools and the wire protocol.
 | `midicap.swift` | Listen on every SMC-PAD CoreMIDI source and print each message decoded. This produced the input map in `QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi`. |
 | `midisend.swift` | Send one MIDI message (hex bytes as args) to the `SMC-PAD-Master` port. Used to prove notes/CC do **not** drive the LEDs. |
 | `blescan.swift` | Scan BLE, connect to the pad, enumerate GATT services and characteristics. |
+| `midiports.swift` | List every MIDI source under the name **QLC+** uses for it (CoreMIDI `Model`, falling back to the display name), with its UID and the name macOS shows. This is how you find out which line the workspace's `<Input Name="...">` actually matches. |
 | `bletool.swift` | Connect over BLE (retrieving the bonded peripheral), subscribe to notify chars, and write packets to `AE41`. Each arg is a hex packet **without** checksum - the tool appends `(~sum)&0xFF`; prefix `raw:` to send verbatim. |
 
 ## The MIDI side (input - solved, shipped)
