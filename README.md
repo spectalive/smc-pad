@@ -49,7 +49,7 @@ control. The map lives in
 are both derived from it - regenerate the profile with
 `qlctool input-profile`, never by hand.
 
-## The LED side (output - protocol cracked, colour payload open)
+## The LED side (output - solved and shipped)
 
 The pad LEDs do **not** respond to MIDI. The official app `MidiSuite.apk`
 (Flutter) drives them over **Bluetooth LE GATT**, decompiled with Blutter
@@ -63,7 +63,12 @@ The pad LEDs do **not** respond to MIDI. The official app `MidiSuite.apk`
 - Char `7772E5DB-3868-4112-A1A9-F2669D106BF3`: BLE-MIDI, the pad's button
   presses stream here (e.g. `80 80 99 16 7F` = BLE-MIDI header + NoteOn ch10).
 
-### Packet framing (verified from the decompile)
+### Packet framing (first reading - superseded)
+
+This is what the Android decompile suggested, and it is kept because the GATT
+tools still speak it. The constant is **not** `0xB2`: decoding the pad's own
+status and OK packets proved the logical packet starts `00 59` - see "The wire
+protocol" below, which is the form to build against.
 
 ```
 [0xB2, type, ...payload, checksum]
@@ -81,8 +86,10 @@ packet. Worked examples the tool produces:
 
 1. The pad advertises only in Bluetooth pairing mode; once **bonded** it stops
    advertising - retrieve it with `retrieveConnectedPeripherals`, not a scan.
-2. **Unplug USB.** With USB connected the pad routes MIDI over USB and the BLE
-   side goes silent; BLE-only, presses arrive on the `7772E5DB` char.
+2. The cable may stay in. The pad sends on every transport it has open at once:
+   with USB connected and all three `SINCO` ports enumerated, presses still
+   arrive on the `7772E5DB` char. (An earlier note here said the BLE side goes
+   silent under USB - corrected 2026-08-29 against the device.)
 
 ### The colour ENCODING - solved (2026-08-29)
 
@@ -103,22 +110,14 @@ Confirmed against the editor's on-screen colours (the displayed yellow pads and
 the magenta pad 16 matched `F0F000` / `F000F0` in the file byte-for-byte). So
 the colour model is plain per-pad 24-bit RGB, keyed by note number.
 
-### What is still NOT solved: applying it live
+### Why the `.spc` record alone was not enough
 
-The physical LEDs work (the pad shows the app's colours), but nothing this repo
-sends makes them change:
-
-- The desktop app drives the LEDs over **USB** as M-VAVE SysEx
-  (`F0 00 32 ...`), via `flutter_midi_command`. CoreMIDI capture only sees the
-  pad->Mac direction, so the app's outgoing colour SysEx was not captured.
-- Raw writes of the `09 id 00 7F RGB FF` record to BLE `AE41` (and `AE01`),
-  with and without the `B2 44` frame, with USB plugged and unplugged, app open
-  and closed - all left the LEDs unchanged (owner confirmed).
-
-The likely reason is the codec: SysEx data bytes must be < 0x80, but the RGB
-channels are 8-bit (0xF0, 0xFF...), so the app's `core/usb/sysex_codec.dart`
-**7-bit re-encodes** the payload before sending. The exact wire bytes need that
-codec.
+Writing that `09 id 00 7F RGB FF` record at the pad - raw to BLE `AE41` and
+`AE01`, with and without a frame, USB plugged and unplugged, app open and
+closed - never changed an LED. Two reasons, both settled below: SysEx data bytes
+must be under `0x80` while the RGB channels are 8-bit, so the payload needs the
+app's 7-bit codec; and a write is ignored until the connect session is
+unlocked.
 
 ### The wire protocol - solved (2026-08-29, via Codex)
 
@@ -246,38 +245,13 @@ Two gotchas that cost time: the bridge output's **MIDI Channel must be omni
 CoreMIDI endpoint is recreated on every restart — if you restart the daemon,
 re-select it in QLC+ (or reload the workspace).
 
-Verified end to end: a NoteOn to the virtual port paints the pad over Bluetooth
-(`swift midisend2.swift "SMC-PAD LED Bridge" 90 10 7F` lit pad 1 white). The
-note->pad->flash-address map is in the daemon: pad N's colour is at
-`0x418 + (N-1)*26`, and bank-A pad notes 4-19 map to pads 13-16 / 9-12 / 5-8 /
-1-4. Default colours are white when active, off when inactive - edit `ON_COLOR`
-/ `OFF_COLOR` (or add a per-note colour table) for a show palette.
+Verified end to end: a NoteOn to the virtual port paints the pad over Bluetooth.
+The note->address map is one 26-byte record per note slot,
+`0x418 + (note - 36) * 26`, which covers both banks with the same arithmetic
+(note 36 = bank 1 PAD1, note 52 = bank 2 PAD1).
 
-### The remaining tidy-up (not blockers)
-
-Every derived colour command was sent (USB SysEx to the pad's CoreMIDI
-destination - the same `MIDISend` path `flutter_midi_command` uses - and raw to
-BLE `AE41`), app open and closed, owner watching: the LED never changed, even
-though the desktop app changes it instantly over the same CoreMIDI transport.
-
-The remaining unknown is the **address** in `_write(5, address, rgb)`.
-`color_cmd.py` computes it as `profile*3539 + 211 + pad_index*26 + 5` - but
-3539 is the `.spc` **file** size, so that is a file offset, not the device
-flash address. In the app the address is a field on the pad object, loaded
-from the device's own config at connect. The real per-pad addresses therefore
-live in the config the pad streams on connect (`appcolor.log` has that stream:
-48-byte records like `48 10 07 40 3F ...`); they must be decoded from there, or
-captured from the app's actual write with a CoreMIDI output spy (snoize
-MIDISpy - its driver would not load unapproved on Apple Silicon in this
-session).
-
-With the correct address the colour command is complete and the bridge sends
-it over USB - no BLE, the pad stays a QLC+ input and an LED output on one cable.
-
-## The bridge, once the packet is known
-
-QLC+ cannot emit GATT and the pad ignores MIDI for LEDs, so a small macOS
-daemon closes the gap: connect to the pad over BLE, subscribe to QLC+'s
-note/CC feedback on a virtual MIDI port, and translate each event into the
-`B2 44 ...` colour write. The pad stays a USB-MIDI input to QLC+ and a BLE LED
-output at once.
+Colours are per function, not per state: `PAD_COLORS` / `BANK2_COLORS` in the
+daemon hold one RGB per pad, painted at `1/DIM` brightness while the function is
+idle and full-bright while QLC+ reports it active. They mirror the console
+button colours in `tools/qlctool/qlctool/generate/smc_pad_colors.py` - change
+one and change the other, or the pad and the screen stop agreeing.
