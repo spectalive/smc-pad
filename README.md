@@ -33,7 +33,7 @@ Measured 2026-08-29 with `midicap.swift`, owner pressing:
   (PAD1 = 36, PAD13 = 48, PAD16 = 51).
 - **PAD BANK** moves the whole surface up one bank of 16 notes - PAD1 answered
   52 - and the pad *remembers* which bank it is on across power cycles. The
-  show uses two: the hits on bank 1, the console's manual page on bank 2.
+  show uses two: the hits on bank 1, the JUGAR/page-2 hooks on bank 2.
 - **SHIFT sends nothing.** It picks the functions silkscreened on the pads
   (SWING, LATCH, SYNC, TAP TEMPO), which never leave the device. Nothing on a
   console can be bound to it.

@@ -23,7 +23,7 @@ setbuf(stdout, nil)
 // Note numbers are the pad's own, measured 2026-08-29: within a bank the note
 // is 35 + padNumber counting from the bottom-left (PAD1 = 36, PAD13 = 48), and
 // PAD BANK moves the whole surface 16 notes up. The show uses two banks - the
-// hits on bank 1, the console's manual page on bank 2 - so this bridge paints
+// hits on bank 1, the JUGAR/page-2 hooks on bank 2 - so this bridge paints
 // notes 36..67. The pad's flash keeps one 26-byte record per note slot, so a
 // note's colour address is 0x418 + (note - 36) * 26 for any of them.
 
@@ -49,7 +49,7 @@ let PAD_COLORS: [(UInt8, UInt8, UInt8)] = [
     (255,   0, 255),  // pad 15 Flash Color
     (  0, 255, 255),  // pad 16 Color Beam
 ]
-// Bank 2 (PAD BANK): the console's manual page. Its bottom two rows are unused,
+// Bank 2 (PAD BANK): the JUGAR/page-2 hooks. Its bottom two rows are unused,
 // so they sit at the same faint grey as the free pad on bank 1.
 let FREE_PAD: (UInt8, UInt8, UInt8) = (20, 20, 20)
 let BANK2_COLORS: [(UInt8, UInt8, UInt8)] = [
