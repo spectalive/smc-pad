@@ -47,7 +47,7 @@ let PAD_COLORS: [(UInt8, UInt8, UInt8)] = [
     (255, 255, 255),  // pad 13 Flash 100%
     (255, 225, 180),  // pad 14 Flash 50%
     (255,   0, 255),  // pad 15 Flash Color
-    (  0, 255, 255),  // pad 16 Color Beam
+    ( 20,  20,  20),  // pad 16 free - faint grey since COLOR BEAM went
 ]
 // Bank 2 (PAD BANK): the JUGAR/page-2 hooks. Its bottom two rows are unused,
 // so they sit at the same faint grey as the free pad on bank 1.
