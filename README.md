@@ -44,7 +44,7 @@ Measured 2026-08-29 with `midicap.swift`, owner pressing:
 QLC+ must run its MIDI input in omni ("1-16") mode, or it never ORs the MIDI
 channel into the channel number and every pad binding addresses the wrong
 control. The map lives in
-`tools/qlctool/qlctool/generate/smc_pad_device.py`; the bindings
+`qlctool/generate/smc_pad_device.py` in https://github.com/spectalive/qlctool; the bindings
 (`smc_pad_bindings.py`) and the profile `QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi`
 are both derived from it - regenerate the profile with
 `qlctool input-profile`, never by hand.
@@ -253,5 +253,6 @@ The note->address map is one 26-byte record per note slot,
 Colours are per function, not per state: `PAD_COLORS` / `BANK2_COLORS` in the
 daemon hold one RGB per pad, painted at `1/DIM` brightness while the function is
 idle and full-bright while QLC+ reports it active. They mirror the console
-button colours in `tools/qlctool/qlctool/generate/smc_pad_colors.py` - change
+button colours in `qlctool/generate/smc_pad_colors.py` in
+https://github.com/spectalive/qlctool - change
 one and change the other, or the pad and the screen stop agreeing.

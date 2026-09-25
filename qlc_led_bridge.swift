@@ -28,9 +28,10 @@ setbuf(stdout, nil)
 // note's colour address is 0x418 + (note - 36) * 26 for any of them.
 
 // The palette, note -> RGB, mirroring the console button colours in
-// tools/qlctool/qlctool/generate/smc_pad_colors.py. Each pad glows its colour
-// dimmed while idle and full-bright while its function is active. Keep the two
-// in step: the console paints the button, this paints the pad under the finger.
+// qlctool/generate/smc_pad_colors.py in https://github.com/spectalive/qlctool.
+// Each pad glows its colour dimmed while idle and full-bright while its
+// function is active. Keep the two in step: the console paints the button,
+// this paints the pad under the finger.
 let PAD_COLORS: [(UInt8, UInt8, UInt8)] = [
     (255, 255, 255),  // pad 1  Blanco Total
     (255,  40,  40),  // pad 2  Todo Negro

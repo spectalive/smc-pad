@@ -19,7 +19,7 @@ it once with `tools/smc-pad/install-bridge.sh` and a launchd agent starts it at
 login and restarts it if it dies.
 
 The palette is one RGB per master function, in
-`tools/qlctool/qlctool/generate/smc_pad_colors.py`, and the generated console
+`qlctool/generate/smc_pad_colors.py` in https://github.com/spectalive/qlctool, and the generated console
 paints each button the same colour - the pad and the screen read as one surface.
 
 Two things the operator has to know, both in
