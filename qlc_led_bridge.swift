@@ -158,6 +158,12 @@ func validateArguments() {
     let args = Array(CommandLine.arguments.dropFirst())
     var i = 0
     while i < args.count {
+        // LaunchServices may add a process serial number to a Finder launch,
+        // and the Finder launch is the one that earns the Bluetooth grant.
+        if args[i].hasPrefix("-psn_") {
+            i += 1
+            continue
+        }
         guard knownFlags.contains(args[i]) else {
             fail("unrecognized argument '\(args[i])'\n\(usageLine)")
         }

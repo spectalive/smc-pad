@@ -80,6 +80,14 @@ else
     failures=$((failures + 1))
 fi
 
+# A Finder launch may carry a LaunchServices process serial number.
+if "$BRIDGE" -psn_0_12345 --print-palette "$FIXTURES/Vibra.pads.json" > "$WORK/psn.txt" 2> "$WORK/psn.err" \
+    && diff -q "$FIXTURES/Vibra.pads.expected.txt" "$WORK/psn.txt" > /dev/null; then
+    echo "ok   a -psn_ argument from a Finder launch is ignored"
+else
+    echo "FAIL a -psn_ argument stopped the bridge: $(cat "$WORK/psn.err")"; failures=$((failures + 1))
+fi
+
 if "$BRIDGE" "$FIXTURES/Vibra.pads.json" > /dev/null 2> "$WORK/positional.err"; then
     echo "FAIL the old positional argument was accepted"; failures=$((failures + 1))
 elif grep -q "usage:" "$WORK/positional.err"; then
