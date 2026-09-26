@@ -1,16 +1,20 @@
 #!/bin/bash
 # Install the SMC-PAD LED bridge as a launchd agent, so the pad lights itself.
 #
-# Run once per machine, from this directory:
+# Run once per machine, and again whenever the show's pad palette changes:
 #
-#     ./install-bridge.sh
+#     ./install-bridge.sh <palette.json>
+#
+# The palette is the show's, written by `qlctool pad-palette --out <file.json>
+# <workspace>` (https://github.com/spectalive/qlctool). It is checked before
+# anything is installed: a file the bridge would refuse stops the install.
 #
 # What it leaves behind, and why each piece is where it is:
 #
-#   ~/Library/Application Support/Vibra/Vibra LED Bridge.app   the daemon,
-#                                        with gatt_unlock.txt in its Resources
-#   ~/Library/LaunchAgents/<label>.plist                       starts it at login
-#   ~/Library/Logs/vibra-smc-pad-led-bridge.log                what it did
+#   ~/Library/Application Support/SMC-PAD LED Bridge/SMC-PAD LED Bridge.app
+#       the daemon, with gatt_unlock.txt and palette.json in its Resources
+#   ~/Library/LaunchAgents/<label>.plist      starts it at login
+#   ~/Library/Logs/smc-pad-led-bridge.log     what it did
 #
 # Three things this has to get right, each learned the hard way on 2026-08-29:
 #
@@ -33,17 +37,41 @@
 #    Bridge first, QLC+ second, or QLC+ patches its feedback to whatever else
 #    sits on that line and the pads stay dark.
 #
-# Both data files are copied out of the repo, so a running show does not depend
-# on where the repo lives or on it being on the machine at all.
+# Both data files are copied into the bundle, so a running show does not depend
+# on where this repository or the show's lives, and so a Finder launch - which
+# passes no arguments - still finds its palette. That is why the palette goes
+# into Resources rather than onto the agent's command line: the one launch that
+# can earn the Bluetooth grant is the one that cannot be told a path.
 
 set -euo pipefail
 
-LABEL="com.vibra.smc-pad-led-bridge"
+if [ "$#" -ne 1 ]; then
+    echo "usage: $0 <palette.json>   (written by \`qlctool pad-palette\`)" >&2
+    exit 2
+fi
+PALETTE="$1"
+if [ ! -f "$PALETTE" ]; then
+    echo "no such palette: $PALETTE" >&2
+    exit 1
+fi
+
+LABEL="com.spectalive.smc-pad-led-bridge"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$HOME/Library/Application Support/Vibra"
-BUNDLE="$APP_DIR/Vibra LED Bridge.app"
+APP_DIR="$HOME/Library/Application Support/SMC-PAD LED Bridge"
+BUNDLE="$APP_DIR/SMC-PAD LED Bridge.app"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-LOG="$HOME/Library/Logs/vibra-smc-pad-led-bridge.log"
+LOG="$HOME/Library/Logs/smc-pad-led-bridge.log"
+
+# The bridge used to be installed from the Vibra show's repository under
+# another label. Two bridges would fight over the pad's one BLE session, so
+# the old one has to go first - by hand, because it is not ours to remove.
+OLD_PLIST="$HOME/Library/LaunchAgents/com.vibra.smc-pad-led-bridge.plist"
+if [ -e "$OLD_PLIST" ]; then
+    echo "An older bridge is installed ($OLD_PLIST). Remove it first:" >&2
+    echo "  launchctl bootout gui/$UID/com.vibra.smc-pad-led-bridge" >&2
+    echo "  rm \"$OLD_PLIST\"" >&2
+    exit 1
+fi
 
 if ! command -v swiftc >/dev/null; then
     echo "swiftc not found. Install Xcode's command line tools on the machine"
@@ -52,13 +80,19 @@ if ! command -v swiftc >/dev/null; then
 fi
 
 echo "Compiling..."
+BUILD="$(mktemp -d)"
+trap 'rm -rf "$BUILD"' EXIT
+swiftc -O "$HERE/qlc_led_bridge.swift" -o "$BUILD/qlc-led-bridge"
+echo "Checking the palette..."
+"$BUILD/qlc-led-bridge" --print-palette "$PALETTE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources" \
          "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
-swiftc -O "$HERE/qlc_led_bridge.swift" -o "$BUNDLE/Contents/MacOS/qlc-led-bridge"
+cp "$BUILD/qlc-led-bridge" "$BUNDLE/Contents/MacOS/qlc-led-bridge"
 # Inside the bundle, so double-clicking the app works: `open` passes no
 # arguments, and the app has to run at least once from the Finder for macOS to
 # offer the Bluetooth prompt.
 cp "$HERE/reference/gatt_unlock.txt" "$BUNDLE/Contents/Resources/gatt_unlock.txt"
+cp "$PALETTE" "$BUNDLE/Contents/Resources/palette.json"
 
 cat > "$BUNDLE/Contents/Info.plist" <<'INFOEOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -66,9 +100,9 @@ cat > "$BUNDLE/Contents/Info.plist" <<'INFOEOF'
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.vibra.smc-pad-led-bridge</string>
+    <string>com.spectalive.smc-pad-led-bridge</string>
     <key>CFBundleName</key>
-    <string>Vibra LED Bridge</string>
+    <string>SMC-PAD LED Bridge</string>
     <key>CFBundleExecutable</key>
     <string>qlc-led-bridge</string>
     <key>CFBundlePackageType</key>
@@ -80,7 +114,7 @@ cat > "$BUNDLE/Contents/Info.plist" <<'INFOEOF'
     <key>LSUIElement</key>
     <true/>
     <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>Enciende los LEDs del SMC-PAD con los colores del show.</string>
+    <string>Lights the SMC-PAD's pads in the show's colours.</string>
 </dict>
 </plist>
 INFOEOF
@@ -127,7 +161,7 @@ echo "  stop:    launchctl bootout gui/$UID/$LABEL"
 echo "  start:   launchctl bootstrap gui/$UID \"$PLIST\""
 echo "  restart: launchctl kickstart -k gui/$UID/$LABEL"
 echo
-echo "First run only: macOS asks to let 'Vibra LED Bridge' use Bluetooth. Say"
+echo "First run only: macOS asks to let 'SMC-PAD LED Bridge' use Bluetooth. Say"
 echo "yes. Without it the agent runs, publishes its MIDI port, logs nothing"
 echo "wrong, and never connects - the log stops after 'bridge running' with no"
 echo "'pad connected' line. If you miss the prompt, grant it by hand in"

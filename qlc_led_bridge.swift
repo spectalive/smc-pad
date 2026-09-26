@@ -12,7 +12,9 @@ setbuf(stdout, nil)
 //   1. It holds the pad's LED session over BLE GATT (service AE40): it replays
 //      the connect unlock (reference/gatt_unlock.txt), then keeps writing colours
 //      to characteristic AE41.
-//   2. It publishes a virtual CoreMIDI destination, "SMC-PAD LED Bridge". Point
+//   2. It reads the show's pad palette (see below) and paints every pad it
+//      names its idle colour once the session is up.
+//   3. It publishes a virtual CoreMIDI destination, "SMC-PAD LED Bridge". Point
 //      QLC+'s output (of the universe the pad is patched to) at this port with
 //      Feedback enabled. When a Virtual Console widget lights, QLC+ sends the
 //      widget's note here; the bridge paints the matching pad.
@@ -22,50 +24,41 @@ setbuf(stdout, nil)
 //
 // Note numbers are the pad's own, measured 2026-08-29: within a bank the note
 // is 35 + padNumber counting from the bottom-left (PAD1 = 36, PAD13 = 48), and
-// PAD BANK moves the whole surface 16 notes up. The show uses two banks - the
-// hits on bank 1, the JUGAR/page-2 hooks on bank 2 - so this bridge paints
-// notes 36..67. The pad's flash keeps one 26-byte record per note slot, so a
+// PAD BANK moves the whole surface 16 notes up. A show may use two banks, so
+// this bridge paints notes 36..67. The pad's flash keeps one 26-byte record per note slot, so a
 // note's colour address is 0x418 + (note - 36) * 26 for any of them.
 
-// The palette, note -> RGB, mirroring the console button colours in
-// qlctool/generate/smc_pad_colors.py in https://github.com/spectalive/qlctool.
-// Each pad glows its colour dimmed while idle and full-bright while its
-// function is active. Keep the two in step: the console paints the button,
-// this paints the pad under the finger.
-let PAD_COLORS: [(UInt8, UInt8, UInt8)] = [
-    (255, 255, 255),  // pad 1  Blanco Total
-    (255,  40,  40),  // pad 2  Todo Negro
-    (255, 170,  60),  // pad 3  Charla
-    ( 20,  20,  20),  // pad 4  free - faint grey
-    ( 40, 255,  60),  // pad 5  AUTO
-    (255,  40, 180),  // pad 6  Fiesta
-    (255,  90,   0),  // pad 7  Locura
-    ( 40, 120, 255),  // pad 8  Tranquilo
-    (  0, 220, 255),  // pad 9  Humo Vertical
-    (150, 220, 255),  // pad 10 Humo
-    (255, 255,   0),  // pad 11 Strobo
-    (255, 200,   0),  // pad 12 Strobo Medio
-    (255, 255, 255),  // pad 13 Flash 100%
-    (255, 225, 180),  // pad 14 Flash 50%
-    (255,   0, 255),  // pad 15 Flash Color
-    ( 20,  20,  20),  // pad 16 free - faint grey since COLOR BEAM went
-]
-// Bank 2 (PAD BANK): the JUGAR/page-2 hooks. Its bottom two rows are unused,
-// so they sit at the same faint grey as the free pad on bank 1.
-let FREE_PAD: (UInt8, UInt8, UInt8) = (20, 20, 20)
-let BANK2_COLORS: [(UInt8, UInt8, UInt8)] = [
-    FREE_PAD, FREE_PAD, FREE_PAD, FREE_PAD,          // pads 1-4  free
-    FREE_PAD, FREE_PAD, FREE_PAD, FREE_PAD,          // pads 5-8  free
-    (255, 255, 255),  // pad 9  Prisma Animacion
-    (150, 220, 255),  // pad 10 Humo Auto
-    (255, 140,   0),  // pad 11 Arcoiris Simultaneo
-    (255, 220,   0),  // pad 12 Arcoiris Pasos
-    (255,   0, 128),  // pad 13 Rueda Colores
-    (128,   0, 255),  // pad 14 Rueda Mezcla
-    (  0, 128, 255),  // pad 15 Movimientos Cabezas
-    (  0, 255, 128),  // pad 16 Gobo Animacion
-]
-let DIM = 6   // idle brightness = colour / DIM
+// The palette is not this file's business. Which pad wears which colour is
+// the show's: `qlctool pad-palette --out <file.json> <workspace>`
+// (https://github.com/spectalive/qlctool, docs/pad-palette.md) writes it from
+// the same bindings and colours the generated console paints its buttons
+// with, so the pad and the screen cannot drift apart. The bridge reads that
+// file at start, lights each pad by its `note`, and uses `active` and `idle`
+// exactly as given. Format 1 is the only one it knows; it refuses any other.
+//
+// What stays here is the device: the note range and where each note's colour
+// lives in the pad's flash.
+
+struct PadPalette: Decodable {
+    struct Pad: Decodable {
+        let bank: Int
+        let pad: Int
+        let note: Int
+        let control: String?
+        let lit: Bool
+        let active: [UInt8]
+        let idle: [UInt8]
+    }
+    let format: Int
+    let pads: [Pad]
+}
+
+struct PadColors {
+    let active: (UInt8, UInt8, UInt8)
+    let idle: (UInt8, UInt8, UInt8)
+    let label: String
+    let control: String?
+}
 
 let FIRST_NOTE = 36           // PAD1 on bank 1
 let LAST_NOTE = FIRST_NOTE + 31  // PAD16 on bank 2
@@ -73,44 +66,100 @@ let LAST_NOTE = FIRST_NOTE + 31  // PAD16 on bank 2
 // One 26-byte record per note slot, so the same arithmetic covers both banks.
 func noteAddress(_ note: Int) -> Int { 0x418 + (note - FIRST_NOTE) * 26 }
 
-func paletteColor(_ note: Int) -> (UInt8, UInt8, UInt8)? {
-    guard (FIRST_NOTE...LAST_NOTE).contains(note) else { return nil }
-    let offset = note - FIRST_NOTE
-    return offset < 16 ? PAD_COLORS[offset] : BANK2_COLORS[offset - 16]
+func fail(_ message: String) -> Never {
+    FileHandle.standardError.write(("ERROR: " + message + "\n").data(using: .utf8)!)
+    exit(1)
 }
 
-func dimmed(_ c: (UInt8, UInt8, UInt8)) -> (UInt8, UInt8, UInt8) {
-    (c.0 / UInt8(DIM), c.1 / UInt8(DIM), c.2 / UInt8(DIM))
+func rgb(_ channels: [UInt8], _ what: String) -> (UInt8, UInt8, UInt8) {
+    guard channels.count == 3 else { fail("\(what) has \(channels.count) channels, not 3") }
+    return (channels[0], channels[1], channels[2])
 }
 
-/// "bank 2 pad 13" - what the operator sees, for the log line.
-func padLabel(_ note: Int) -> String {
-    let offset = note - FIRST_NOTE
-    return offset < 16 ? "pad \(offset + 1)" : "bank 2 pad \(offset - 15)"
+/// note -> colours, from a `qlctool pad-palette` file. Exits on anything it
+/// cannot paint faithfully: a bridge that guesses lights the wrong pads.
+func loadPalette(_ path: String) -> [Int: PadColors] {
+    guard let data = FileManager.default.contents(atPath: path) else {
+        fail("cannot read the pad palette \(path)")
+    }
+    let palette: PadPalette
+    do {
+        palette = try JSONDecoder().decode(PadPalette.self, from: data)
+    } catch {
+        fail("\(path) is not a pad palette: \(error)")
+    }
+    guard palette.format == 1 else {
+        fail("\(path) is pad palette format \(palette.format); this bridge reads format 1 only")
+    }
+    var byNote: [Int: PadColors] = [:]
+    for pad in palette.pads {
+        guard (FIRST_NOTE...LAST_NOTE).contains(pad.note) else {
+            fail("\(path): note \(pad.note) is outside the pad's \(FIRST_NOTE)-\(LAST_NOTE)")
+        }
+        guard byNote[pad.note] == nil else { fail("\(path): note \(pad.note) appears twice") }
+        byNote[pad.note] = PadColors(
+            active: rgb(pad.active, "note \(pad.note) active"),
+            idle: rgb(pad.idle, "note \(pad.note) idle"),
+            label: "bank \(pad.bank) pad \(pad.pad)",
+            control: pad.control)
+    }
+    return byNote
+}
+
+/// What each note would show, one line per note; the bridge's own reading of
+/// the file, so it can be checked without a pad in reach.
+func printPalette(_ palette: [Int: PadColors]) {
+    print("\(palette.count) pads")
+    for note in palette.keys.sorted() {
+        let p = palette[note]!
+        let address = String(format: "0x%04X", noteAddress(note))
+        print("note \(note)  \(p.label)  addr \(address)  " +
+              "active \(p.active.0),\(p.active.1),\(p.active.2)  " +
+              "idle \(p.idle.0),\(p.idle.1),\(p.idle.2)  \(p.control ?? "free")")
+    }
+}
+
+/// `--palette FILE`, `--unlock FILE`, `--print-palette FILE`.
+func option(_ name: String) -> String? {
+    let args = CommandLine.arguments
+    guard let i = args.firstIndex(of: name) else { return nil }
+    guard i + 1 < args.count else { fail("\(name) needs a file") }
+    return args[i + 1]
+}
+
+let exeDir = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
+
+/// The palette to paint: `--palette` when given, else the copy the installer
+/// put in the bundle's Resources. The bundle copy is what the launchd agent
+/// and a Finder launch use - `open` passes no arguments, and the app must run
+/// from the Finder once for macOS to offer the Bluetooth prompt.
+func palettePath() -> String {
+    if let path = option("--palette") { return path }
+    let bundled = exeDir.appendingPathComponent("../Resources/palette.json").path
+    if FileManager.default.fileExists(atPath: bundled) { return bundled }
+    fail("no pad palette: pass --palette <file.json> (written by `qlctool pad-palette`)")
 }
 
 func le(_ v: Int, _ w: Int) -> [UInt8] { (0..<w).map { UInt8((v >> (8*$0)) & 0xFF) } }
 func colorLogical(_ addr: Int, _ r: UInt8, _ g: UInt8, _ b: UInt8) -> [UInt8] {
-    var d: [UInt8] = [0x05] + le(addr,4) + [0x03,0x00,0x00] + [r,g,b]
+    let d: [UInt8] = [0x05] + le(addr,4) + [0x03,0x00,0x00] + [r,g,b]
     let ck = UInt8((~d.map{Int($0)}.reduce(0,+)) & 0xFF)
     return [0x00,0x59,0x22] + le(d.count,3) + d + [ck]
 }
 func unlockPackets() -> [[UInt8]] {
     // Where gatt_unlock.txt can be, in the order worth trying:
+    //  - an explicit `--unlock <file>`.
     //  - inside our own .app bundle, which is how install-bridge.sh ships it.
     //    This one matters beyond tidiness: macOS only shows the Bluetooth
     //    permission prompt to an app launched from the Finder, and `open` passes
     //    no arguments - so a build that could only be told its data file on the
     //    command line could never be granted Bluetooth at all.
-    //  - an explicit path as the first argument (what the launchd agent passes).
     //  - relative to the working directory, for `swift qlc_led_bridge.swift`
-    //    run straight out of tools/smc-pad.
-    let exeDir = URL(fileURLWithPath: CommandLine.arguments[0])
-        .deletingLastPathComponent()
+    //    run straight out of this repository.
     let candidates = [
+        option("--unlock") ?? "",
         exeDir.appendingPathComponent("../Resources/gatt_unlock.txt").path,
         exeDir.appendingPathComponent("gatt_unlock.txt").path,
-        CommandLine.arguments.dropFirst().first ?? "",
         "reference/gatt_unlock.txt",
         "gatt_unlock.txt",
     ]
@@ -128,6 +177,9 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     var writeChar: CBCharacteristic?
     var ready = false
     let unlock = unlockPackets()
+    let palette: [Int: PadColors]
+
+    init(palette: [Int: PadColors]) { self.palette = palette }
     var midiClient = MIDIClientRef()
     var virtualDest = MIDIEndpointRef()
 
@@ -172,9 +224,9 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             } else {
                 t.invalidate(); self.ready = true
                 print("session ready - painting idle palette, QLC+ feedback live")
-                // Paint every pad of both banks its dim idle colour.
-                for note in FIRST_NOTE...LAST_NOTE {
-                    guard let c = paletteColor(note).map(dimmed) else { continue }
+                // Paint every pad the palette names its idle colour.
+                for (note, colours) in self.palette {
+                    let c = colours.idle
                     self.pad?.writeValue(Data(colorLogical(noteAddress(note), c.0, c.1, c.2)),
                                          for: ch, type: .withoutResponse)
                 }
@@ -213,10 +265,10 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
             let status = b[i] & 0xF0
             guard status == 0x90 || status == 0x80 else { i += 1; continue }
             let note = Int(b[i+1]), vel = b[i+2]
-            if let colour = paletteColor(note) {
+            if let colours = palette[note] {
                 let on = (status == 0x90 && vel > 0)
-                let c = on ? colour : dimmed(colour)
-                print("MIDI in: note \(note) -> \(padLabel(note)) \(on ? "ACTIVE" : "idle")" +
+                let c = on ? colours.active : colours.idle
+                print("MIDI in: note \(note) -> \(colours.label) \(on ? "ACTIVE" : "idle")" +
                       (ready ? "" : " (session NOT ready, dropped)"))
                 DispatchQueue.main.async { self.write(noteAddress(note), c.0, c.1, c.2) }
             }
@@ -225,7 +277,16 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     }
 }
 
-let bridge = Bridge()
+if let path = option("--print-palette") {
+    printPalette(loadPalette(path))
+    exit(0)
+}
+
+let palettePathInUse = palettePath()
+let palette = loadPalette(palettePathInUse)
+print("pad palette: \(palettePathInUse), \(palette.count) pads")
+if palette.isEmpty { print("WARNING: the palette lights no pad") }
+let bridge = Bridge(palette: palette)
 bridge.start()
 print("SMC-PAD LED bridge running. In QLC+, set the pad universe's OUTPUT to")
 print("'SMC-PAD LED Bridge' with Feedback enabled. Ctrl-C to stop.")

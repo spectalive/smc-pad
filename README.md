@@ -1,20 +1,106 @@
-# tools/smc-pad - the M-VAVE SMC-PAD, mapped and probed
+# smc-pad - the M-VAVE SMC-PAD, mapped, probed and lit from QLC+
 
-The show is driven from an M-VAVE SMC-PAD (16 RGB pads, 8 encoders, 5 transport
-buttons). These are the throwaway-but-kept Swift tools that mapped its MIDI and
-reverse-engineered its LED protocol on 2026-08-29. Run any of them with
-`swift <file>.swift`. They need macOS with CoreMIDI/CoreBluetooth access
-granted to the terminal.
+The M-VAVE SMC-PAD (16 RGB pads, 8 encoders, 5 transport buttons) is a cheap
+Bluetooth MIDI controller whose pad LEDs do not answer MIDI at all, so QLC+'s
+feedback cannot light them. This repository holds the bridge that does, and the
+Swift tools that mapped the pad's MIDI and reverse-engineered its LED protocol
+on 2026-08-29.
 
-The narrative and the operating conclusions are in
-[`../../docs/smc-pad-led.md`](../../docs/smc-pad-led.md); this file is the
-reference for the tools and the wire protocol.
+It works with any QLC+ show that binds console widgets to the pad. It was
+written for the Vibra lighting show
+([Vibra-Lab/vibra-lighting](https://github.com/Vibra-Lab/vibra-lighting)),
+which is the example below. The narrative - how the protocol was found and the
+dead ends - is in [`docs/smc-pad-led.md`](docs/smc-pad-led.md); this file is the
+reference for the bridge, the tools and the wire protocol.
+
+## The LED bridge
+
+`qlc_led_bridge.swift` holds the pad's LED session over Bluetooth LE and
+publishes a virtual CoreMIDI destination, **"SMC-PAD LED Bridge"**. QLC+ sends
+its widget feedback there; the bridge paints the pad under the note: the pad's
+`active` colour while the widget is on, its `idle` colour otherwise.
+
+### The palette comes from the show
+
+Which pad wears which colour is the show's, not the bridge's. `qlctool
+pad-palette` in [spectalive/qlctool](https://github.com/spectalive/qlctool)
+writes it from a saved workspace, from the same bindings and colours the
+generated console paints its buttons with, so the pad and the screen read as
+one surface:
+
+```sh
+qlctool pad-palette --out "Show.pads.json" "Show.qxw"
+```
+
+The format is documented in qlctool's
+[`docs/pad-palette.md`](https://github.com/spectalive/qlctool/blob/v0.1.6/docs/pad-palette.md).
+The bridge reads format 1 and refuses any other, and refuses a file it cannot
+paint faithfully (a note outside 36-67, a note twice, a colour that is not
+three channels of 0-255). It lights pads by `note` and uses `active` and `idle`
+exactly as given; it computes no brightness of its own. What stays in the bridge
+is the device: the note range and the flash address of each note's colour,
+`0x418 + (note - 36) * 26`.
+
+### Install
+
+macOS with the Xcode command line tools (`swiftc`, `codesign`). From a clone:
+
+```sh
+git clone https://github.com/spectalive/smc-pad.git
+smc-pad/install-bridge.sh "/path/to/Show.pads.json"
+```
+
+The Vibra rig, whose palette ships next to its workspace:
+
+```sh
+~/p/smc-pad/install-bridge.sh ~/p/DMX-Fixtures-qlctool/"QLC+ Setups/Vibra.pads.json"
+```
+
+The installer compiles the bridge, checks the palette with it (a file the
+bridge would refuse stops the install), wraps it in a signed `.app` under
+`~/Library/Application Support/SMC-PAD LED Bridge/` with the palette and the
+unlock copied into its `Resources`, and registers a launchd agent
+(`com.spectalive.smc-pad-led-bridge`) that starts it at login and restarts it
+if it dies. Log: `~/Library/Logs/smc-pad-led-bridge.log`. Rerun it whenever the
+show's palette changes. The script's own comments carry the traps it exists to
+avoid.
+
+The palette goes into the bundle rather than onto the agent's command line on
+purpose: macOS only offers the Bluetooth prompt to an app launched from the
+Finder, and a Finder launch passes no arguments, so a bridge that could only be
+told its palette on the command line could never be granted Bluetooth.
+
+An older install from the Vibra repository (label
+`com.vibra.smc-pad-led-bridge`) makes the installer stop and print how to
+remove it: two bridges would fight over the pad's one BLE session.
+
+### Run it by hand, or check a palette without the pad
+
+```sh
+swift qlc_led_bridge.swift --palette Show.pads.json   # foreground, from this directory
+swiftc -O qlc_led_bridge.swift -o qlc-led-bridge
+./qlc-led-bridge --print-palette Show.pads.json       # what each note would show
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--palette FILE` | The pad palette. Without it, the bridge reads `palette.json` from its bundle's `Resources`, and stops if there is none. |
+| `--unlock FILE` | The session unlock. Without it: the bundle's `Resources`, then `reference/gatt_unlock.txt`. |
+| `--print-palette FILE` | Parse the palette as the bridge does, print one line per note (pad, flash address, active, idle, control) and exit. Touches no Bluetooth and no MIDI. |
+
+`tests/test_print_palette.sh` compiles the bridge and runs that mode on
+`tests/fixtures/Vibra.pads.json` (written by `qlctool pad-palette` from the
+Vibra show's `Vibra.qxw`) against its expected reading, then checks each
+refusal.
 
 ## The tools
 
+The throwaway-but-kept probes. Run any of them with `swift <file>.swift`; they
+need macOS with CoreMIDI/CoreBluetooth access granted to the terminal.
+
 | File | What it does |
 | --- | --- |
-| `midicap.swift` | Listen on every SMC-PAD CoreMIDI source and print each message decoded. This produced the input map in `QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi`. |
+| `midicap.swift` | Listen on every SMC-PAD CoreMIDI source and print each message decoded. This produced the input map in the Vibra show's `QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi`. |
 | `midisend.swift` | Send one MIDI message (hex bytes as args) to the `SMC-PAD-Master` port. Used to prove notes/CC do **not** drive the LEDs. |
 | `blescan.swift` | Scan BLE, connect to the pad, enumerate GATT services and characteristics. |
 | `midiports.swift` | List every MIDI source under the name **QLC+** uses for it (CoreMIDI `Model`, falling back to the display name), with its UID and the name macOS shows. This is how you find out which line the workspace's `<Input Name="...">` actually matches. |
@@ -45,7 +131,7 @@ QLC+ must run its MIDI input in omni ("1-16") mode, or it never ORs the MIDI
 channel into the channel number and every pad binding addresses the wrong
 control. The map lives in
 `qlctool/generate/smc_pad_device.py` in https://github.com/spectalive/qlctool; the bindings
-(`smc_pad_bindings.py`) and the profile `QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi`
+(`smc_pad_bindings.py`) and the Vibra show's profile `QLC+ InputProfiles/M-VAVE-SMC-PAD.qxi`
 are both derived from it - regenerate the profile with
 `qlctool input-profile`, never by hand.
 
@@ -185,25 +271,24 @@ at the same time, no cable.
 ### The QLC+ bridge (working)
 
 `qlc_led_bridge.swift` is the daemon that makes the feedback real. For a machine
-that runs the show, install it once and forget it:
+that runs the show, install it once (see "Install" above) and forget it:
 
 ```bash
-./install-bridge.sh
+./install-bridge.sh Show.pads.json
 ```
 
-That compiles it, wraps it in a signed `.app` under
-`~/Library/Application Support/Vibra/`, and registers a launchd agent that
-starts it at login and restarts it if it dies (verified 2026-08-29 by killing
-it: launchd brought it back and it reconnected to the pad). The script's own
-comments carry the three traps it exists to avoid.
+The launchd agent starts it at login and restarts it if it dies (verified
+2026-08-29 by killing it: launchd brought it back and it reconnected to the
+pad). The script's own comments carry the three traps it exists to avoid.
 
 **The one that will catch you: Bluetooth permission.** macOS gates Bluetooth
 behind TCC, and a launchd agent cannot show the prompt - it starts, publishes
 its MIDI port, logs nothing wrong, and silently never connects. The tell is a
 log that stops after `bridge running` with no `pad connected` line. Fix it by
 opening the app once from the Finder
-(`open "~/Library/Application Support/Vibra/Vibra LED Bridge.app"`), granting
-Bluetooth, then `launchctl kickstart -k gui/$UID/com.vibra.smc-pad-led-bridge`.
+(`open "$HOME/Library/Application Support/SMC-PAD LED Bridge/SMC-PAD LED Bridge.app"`),
+granting Bluetooth, then
+`launchctl kickstart -k gui/$UID/com.spectalive.smc-pad-led-bridge`.
 
 **And: restarting the bridge costs you QLC+'s feedback until you reload.** The
 virtual MIDI endpoint is recreated with a new identity on every start, and QLC+
@@ -214,10 +299,10 @@ To run it in the foreground instead, from this directory (it finds
 `reference/gatt_unlock.txt` relative to the working directory):
 
 ```bash
-swift qlc_led_bridge.swift
+swift qlc_led_bridge.swift --palette Show.pads.json
 ```
 
-It does two things: holds the pad's LED session over BLE GATT (replays the
+It does three things: reads the palette, holds the pad's LED session over BLE GATT (replays the
 unlock, then keeps the session alive), and publishes a virtual CoreMIDI
 destination **"SMC-PAD LED Bridge"**. In QLC+, Inputs/Outputs tab, on the universe the pad is patched to, add
 `SMC-PAD LED Bridge` and — this is the part the UI makes easy to miss — make it
@@ -250,9 +335,8 @@ The note->address map is one 26-byte record per note slot,
 `0x418 + (note - 36) * 26`, which covers both banks with the same arithmetic
 (note 36 = bank 1 PAD1, note 52 = bank 2 PAD1).
 
-Colours are per function, not per state: `PAD_COLORS` / `BANK2_COLORS` in the
-daemon hold one RGB per pad, painted at `1/DIM` brightness while the function is
-idle and full-bright while QLC+ reports it active. They mirror the console
-button colours in `qlctool/generate/smc_pad_colors.py` in
-https://github.com/spectalive/qlctool - change
-one and change the other, or the pad and the screen stop agreeing.
+Colours are per function, not per state: the palette gives each pad an
+`active` colour, painted while QLC+ reports its widget on, and an `idle` one,
+painted otherwise. Both come from the show's `qlctool pad-palette` file, which
+the toolkit writes from the same colours it paints the console buttons with,
+so there is nothing here to keep in step by hand.

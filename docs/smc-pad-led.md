@@ -5,25 +5,26 @@ each pad wears its function's colour, dimmed while the function is idle and
 full-bright the instant QLC+ reports it active. This document is the narrative -
 how the protocol was found, what it turned out to be, and the dead ends worth
 not repeating. The wire reference and the tools are in
-[`../tools/smc-pad/`](../tools/smc-pad/).
+[the repository's README](../README.md).
 
 Established by test and by reverse-engineering the official app on 2026-08-29.
 
 ## What it does today
 
-`tools/smc-pad/qlc_led_bridge.swift` is a small macOS daemon that holds the
+`qlc_led_bridge.swift` is a small macOS daemon that holds the
 pad's LED session over Bluetooth LE and publishes a virtual CoreMIDI
 destination, **"SMC-PAD LED Bridge"**. QLC+ sends its ordinary widget feedback
 to that port; the bridge turns each note into a colour write on the pad. Install
-it once with `tools/smc-pad/install-bridge.sh` and a launchd agent starts it at
+it once with `install-bridge.sh <palette.json>` and a launchd agent starts it at
 login and restarts it if it dies.
 
-The palette is one RGB per master function, in
-`qlctool/generate/smc_pad_colors.py` in https://github.com/spectalive/qlctool, and the generated console
-paints each button the same colour - the pad and the screen read as one surface.
+The palette is the show's: `qlctool pad-palette` in
+https://github.com/spectalive/qlctool writes it from the workspace, one active
+and one idle colour per pad, from the same table the generated console paints
+each button with - the pad and the screen read as one surface.
 
-Two things the operator has to know, both in
-[`show-operation.md`](show-operation.md): the universe needs a **`<Feedback>`**
+Two things the operator has to know, both in the Vibra show's
+[`show-operation.md`](https://github.com/Vibra-Lab/vibra-lighting/blob/main/docs/show-operation.md): the universe needs a **`<Feedback>`**
 patch, not only an Output (QLC+'s eye toggle does not reliably create one, so it
 ships in the `.qxw`), and the workspace must be loaded **after** the bridge,
 because the virtual MIDI endpoint gets a new identity on every restart.
@@ -73,7 +74,7 @@ discovery, then a run of read requests walking the entire config, and only then
 is a colour write accepted (the pad answers OK) and the LED changes instantly. A
 poll keeps the session alive.
 
-That unlock is captured in `tools/smc-pad/reference/` and replayed by
+That unlock is captured in `reference/` and replayed by
 `replay.swift` (USB) and `gatt_replay.swift` (Bluetooth); the bridge does the
 GATT version and holds the session open for as long as it runs.
 
@@ -108,6 +109,6 @@ GATT version and holds the session open for as long as it runs.
 
 ## What is still open
 
-Tuning, not protocol: the resting brightness (`DIM` in the bridge) and the
-palette itself want a look in the room, and the manual layer on bank 2 wants a
-press on the real pad. Both are in `TODO.md`.
+Tuning, not protocol: the resting brightness (the palette's `idle`, which the
+toolkit computes) and the palette itself want a look in the room, and the
+manual layer on bank 2 wants a press on the real pad. Both are in `TODO.md`.

@@ -1,0 +1,665 @@
+{
+ "device": "smc-pad",
+ "format": 1,
+ "generator": "qlctool pad-palette",
+ "midiChannel": 10,
+ "pads": [
+  {
+   "active": [
+    255,
+    255,
+    255
+   ],
+   "bank": 1,
+   "channel": 37028,
+   "control": "full_white",
+   "idle": [
+    42,
+    42,
+    42
+   ],
+   "lit": true,
+   "note": 36,
+   "pad": 1,
+   "widgets": [
+    9
+   ]
+  },
+  {
+   "active": [
+    255,
+    40,
+    40
+   ],
+   "bank": 1,
+   "channel": 37029,
+   "control": "all_black",
+   "idle": [
+    42,
+    6,
+    6
+   ],
+   "lit": true,
+   "note": 37,
+   "pad": 2,
+   "widgets": [
+    10
+   ]
+  },
+  {
+   "active": [
+    255,
+    170,
+    60
+   ],
+   "bank": 1,
+   "channel": 37030,
+   "control": "talk_moment",
+   "idle": [
+    42,
+    28,
+    10
+   ],
+   "lit": true,
+   "note": 38,
+   "pad": 3,
+   "widgets": [
+    5
+   ]
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 1,
+   "channel": 37031,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 39,
+   "pad": 4,
+   "widgets": []
+  },
+  {
+   "active": [
+    40,
+    255,
+    60
+   ],
+   "bank": 1,
+   "channel": 37032,
+   "control": "auto",
+   "idle": [
+    6,
+    42,
+    10
+   ],
+   "lit": true,
+   "note": 40,
+   "pad": 5,
+   "widgets": [
+    4
+   ]
+  },
+  {
+   "active": [
+    255,
+    40,
+    180
+   ],
+   "bank": 1,
+   "channel": 37033,
+   "control": "party_moment",
+   "idle": [
+    42,
+    6,
+    30
+   ],
+   "lit": true,
+   "note": 41,
+   "pad": 6,
+   "widgets": [
+    7
+   ]
+  },
+  {
+   "active": [
+    255,
+    90,
+    0
+   ],
+   "bank": 1,
+   "channel": 37034,
+   "control": "frenzy_moment",
+   "idle": [
+    42,
+    15,
+    0
+   ],
+   "lit": true,
+   "note": 42,
+   "pad": 7,
+   "widgets": [
+    8
+   ]
+  },
+  {
+   "active": [
+    40,
+    120,
+    255
+   ],
+   "bank": 1,
+   "channel": 37035,
+   "control": "calm_moment",
+   "idle": [
+    6,
+    20,
+    42
+   ],
+   "lit": true,
+   "note": 43,
+   "pad": 8,
+   "widgets": [
+    6
+   ]
+  },
+  {
+   "active": [
+    0,
+    220,
+    255
+   ],
+   "bank": 1,
+   "channel": 37036,
+   "control": "vertical_smoke_now",
+   "idle": [
+    0,
+    36,
+    42
+   ],
+   "lit": true,
+   "note": 44,
+   "pad": 9,
+   "widgets": [
+    16
+   ]
+  },
+  {
+   "active": [
+    150,
+    220,
+    255
+   ],
+   "bank": 1,
+   "channel": 37037,
+   "control": "smoke_on",
+   "idle": [
+    25,
+    36,
+    42
+   ],
+   "lit": true,
+   "note": 45,
+   "pad": 10,
+   "widgets": [
+    15
+   ]
+  },
+  {
+   "active": [
+    255,
+    255,
+    0
+   ],
+   "bank": 1,
+   "channel": 37038,
+   "control": "strobe_fast",
+   "idle": [
+    42,
+    42,
+    0
+   ],
+   "lit": true,
+   "note": 46,
+   "pad": 11,
+   "widgets": [
+    17
+   ]
+  },
+  {
+   "active": [
+    255,
+    200,
+    0
+   ],
+   "bank": 1,
+   "channel": 37039,
+   "control": "strobe_medium",
+   "idle": [
+    42,
+    33,
+    0
+   ],
+   "lit": true,
+   "note": 47,
+   "pad": 12,
+   "widgets": [
+    18
+   ]
+  },
+  {
+   "active": [
+    255,
+    255,
+    255
+   ],
+   "bank": 1,
+   "channel": 37040,
+   "control": "flash_full",
+   "idle": [
+    42,
+    42,
+    42
+   ],
+   "lit": true,
+   "note": 48,
+   "pad": 13,
+   "widgets": [
+    12
+   ]
+  },
+  {
+   "active": [
+    255,
+    225,
+    180
+   ],
+   "bank": 1,
+   "channel": 37041,
+   "control": "flash_half",
+   "idle": [
+    42,
+    37,
+    30
+   ],
+   "lit": true,
+   "note": 49,
+   "pad": 14,
+   "widgets": [
+    13
+   ]
+  },
+  {
+   "active": [
+    255,
+    0,
+    255
+   ],
+   "bank": 1,
+   "channel": 37042,
+   "control": "flash_colour",
+   "idle": [
+    42,
+    0,
+    42
+   ],
+   "lit": true,
+   "note": 50,
+   "pad": 15,
+   "widgets": [
+    14
+   ]
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 1,
+   "channel": 37043,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 51,
+   "pad": 16,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37044,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 52,
+   "pad": 1,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37045,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 53,
+   "pad": 2,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37046,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 54,
+   "pad": 3,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37047,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 55,
+   "pad": 4,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37048,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 56,
+   "pad": 5,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37049,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 57,
+   "pad": 6,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37050,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 58,
+   "pad": 7,
+   "widgets": []
+  },
+  {
+   "active": [
+    20,
+    20,
+    20
+   ],
+   "bank": 2,
+   "channel": 37051,
+   "control": null,
+   "idle": [
+    3,
+    3,
+    3
+   ],
+   "lit": false,
+   "note": 59,
+   "pad": 8,
+   "widgets": []
+  },
+  {
+   "active": [
+    255,
+    255,
+    255
+   ],
+   "bank": 2,
+   "channel": 37052,
+   "control": "prism_animation",
+   "idle": [
+    42,
+    42,
+    42
+   ],
+   "lit": true,
+   "note": 60,
+   "pad": 9,
+   "widgets": [
+    173
+   ]
+  },
+  {
+   "active": [
+    150,
+    220,
+    255
+   ],
+   "bank": 2,
+   "channel": 37053,
+   "control": "smoke_auto",
+   "idle": [
+    25,
+    36,
+    42
+   ],
+   "lit": true,
+   "note": 61,
+   "pad": 10,
+   "widgets": [
+    29
+   ]
+  },
+  {
+   "active": [
+    255,
+    140,
+    0
+   ],
+   "bank": 2,
+   "channel": 37054,
+   "control": "rainbow_together",
+   "idle": [
+    42,
+    23,
+    0
+   ],
+   "lit": true,
+   "note": 62,
+   "pad": 11,
+   "widgets": [
+    87
+   ]
+  },
+  {
+   "active": [
+    255,
+    220,
+    0
+   ],
+   "bank": 2,
+   "channel": 37055,
+   "control": "rainbow_steps",
+   "idle": [
+    42,
+    36,
+    0
+   ],
+   "lit": true,
+   "note": 63,
+   "pad": 12,
+   "widgets": [
+    88
+   ]
+  },
+  {
+   "active": [
+    255,
+    0,
+    128
+   ],
+   "bank": 2,
+   "channel": 37056,
+   "control": "colour_wheel",
+   "idle": [
+    42,
+    0,
+    21
+   ],
+   "lit": true,
+   "note": 64,
+   "pad": 13,
+   "widgets": [
+    64
+   ]
+  },
+  {
+   "active": [
+    128,
+    0,
+    255
+   ],
+   "bank": 2,
+   "channel": 37057,
+   "control": "mix_wheel",
+   "idle": [
+    21,
+    0,
+    42
+   ],
+   "lit": true,
+   "note": 65,
+   "pad": 14,
+   "widgets": [
+    68
+   ]
+  },
+  {
+   "active": [
+    0,
+    128,
+    255
+   ],
+   "bank": 2,
+   "channel": 37058,
+   "control": "head_movements",
+   "idle": [
+    0,
+    21,
+    42
+   ],
+   "lit": true,
+   "note": 66,
+   "pad": 15,
+   "widgets": [
+    109
+   ]
+  },
+  {
+   "active": [
+    0,
+    255,
+    128
+   ],
+   "bank": 2,
+   "channel": 37059,
+   "control": "gobo_animation",
+   "idle": [
+    0,
+    42,
+    21
+   ],
+   "lit": true,
+   "note": 67,
+   "pad": 16,
+   "widgets": [
+    139
+   ]
+  }
+ ],
+ "show": {
+  "key": "vibra",
+  "sha256": "12a75704c7096c3d2c3940799e88925008817313d50428e1de0cfc2c2cc301aa",
+  "workspace": "Vibra.qxw"
+ }
+}
