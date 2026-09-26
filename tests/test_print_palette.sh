@@ -8,6 +8,11 @@
 # by `qlctool pad-palette` from the Vibra show's `Vibra.qxw`; its expected
 # reading is `Vibra.pads.expected.txt`. The refusals are the bridge's own:
 # a file it cannot paint faithfully must stop it, not light the wrong pads.
+#
+# `--simulate-notes` checks the other half without a pad either: the
+# NoteOn/NoteOff painting QLC+'s feedback drives. `Vibra.notes.txt` is a raw
+# MIDI byte stream (one message per line); its expected reading is
+# `Vibra.notes.expected.txt`.
 
 set -euo pipefail
 
@@ -25,6 +30,14 @@ if diff -u "$FIXTURES/Vibra.pads.expected.txt" "$WORK/reading.txt"; then
     echo "ok   the Vibra palette reads as expected"
 else
     echo "FAIL the Vibra palette reads differently"; failures=$((failures + 1))
+fi
+
+"$BRIDGE" --palette "$FIXTURES/Vibra.pads.json" --simulate-notes "$FIXTURES/Vibra.notes.txt" \
+    > "$WORK/notes.txt"
+if diff -u "$FIXTURES/Vibra.notes.expected.txt" "$WORK/notes.txt"; then
+    echo "ok   NoteOn/NoteOff paints as expected, no pad needed"
+else
+    echo "FAIL the simulated notes paint differently"; failures=$((failures + 1))
 fi
 
 # refuses <name> <sed expression>: the fixture, edited, must be refused.
@@ -45,6 +58,36 @@ refuses note-outside-the-pad 's/"note": 36,/"note": 99,/'
 refuses note-twice 's/"note": 37,/"note": 36,/'
 refuses channel-over-255 '1,/^    255,$/s/^    255,$/    256,/'
 refuses not-json '1s/{/[/'
+
+# The 256 must be refused by the bridge's own range check (a wider integer,
+# checked 0-255), not by whatever message Foundation's JSON decoder raises
+# for an out-of-range UInt8.
+if grep -q "outside 0-255" "$WORK/channel-over-255.err"; then
+    echo "ok   channel-over-255 is the bridge's own refusal: $(cat "$WORK/channel-over-255.err")"
+else
+    echo "FAIL channel-over-255 did not read as the bridge's own refusal: $(cat "$WORK/channel-over-255.err")"
+    failures=$((failures + 1))
+fi
+
+# An unknown flag, and the bridge's old positional unlock-file argument, must
+# stop it with a usage line instead of being ignored.
+if "$BRIDGE" --bogus-flag foo > /dev/null 2> "$WORK/unknown-flag.err"; then
+    echo "FAIL an unknown flag was accepted"; failures=$((failures + 1))
+elif grep -q "usage:" "$WORK/unknown-flag.err"; then
+    echo "ok   an unknown flag is refused with a usage line"
+else
+    echo "FAIL an unknown flag was refused without a usage line: $(cat "$WORK/unknown-flag.err")"
+    failures=$((failures + 1))
+fi
+
+if "$BRIDGE" "$FIXTURES/Vibra.pads.json" > /dev/null 2> "$WORK/positional.err"; then
+    echo "FAIL the old positional argument was accepted"; failures=$((failures + 1))
+elif grep -q "usage:" "$WORK/positional.err"; then
+    echo "ok   the old positional unlock argument is refused with a usage line"
+else
+    echo "FAIL the old positional argument was refused without a usage line: $(cat "$WORK/positional.err")"
+    failures=$((failures + 1))
+fi
 
 # A later format may change the shape too: it is refused by its number.
 printf '{"format": 2, "notes": {}}\n' > "$WORK/format-2-new-shape.json"

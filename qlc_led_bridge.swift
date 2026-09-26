@@ -46,8 +46,8 @@ struct PadPalette: Decodable {
         let note: Int
         let control: String?
         let lit: Bool
-        let active: [UInt8]
-        let idle: [UInt8]
+        let active: [Int]
+        let idle: [Int]
     }
     let format: Int
     let pads: [Pad]
@@ -77,9 +77,16 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
-func rgb(_ channels: [UInt8], _ what: String) -> (UInt8, UInt8, UInt8) {
+/// Decoded as `Int`, wider than the colour byte it must become, so an
+/// out-of-range channel (256, or negative) is this bridge's own refusal and
+/// not whatever message Foundation's JSON decoder happens to raise for a
+/// `UInt8` overflow.
+func rgb(_ channels: [Int], _ what: String) -> (UInt8, UInt8, UInt8) {
     guard channels.count == 3 else { fail("\(what) has \(channels.count) channels, not 3") }
-    return (channels[0], channels[1], channels[2])
+    for c in channels {
+        guard (0...255).contains(c) else { fail("\(what) channel \(c) is outside 0-255") }
+    }
+    return (UInt8(channels[0]), UInt8(channels[1]), UInt8(channels[2]))
 }
 
 /// note -> colours, from a `qlctool pad-palette` file. Exits on anything it
@@ -131,13 +138,33 @@ func printPalette(_ palette: [Int: PadColors]) {
     }
 }
 
-/// `--palette FILE`, `--unlock FILE`, `--print-palette FILE`.
+/// `--palette FILE`, `--unlock FILE`, `--print-palette FILE`, `--simulate-notes FILE`.
 func option(_ name: String) -> String? {
     let args = CommandLine.arguments
     guard let i = args.firstIndex(of: name) else { return nil }
     guard i + 1 < args.count else { fail("\(name) needs a file") }
     return args[i + 1]
 }
+
+let knownFlags: Set<String> = ["--palette", "--unlock", "--print-palette", "--simulate-notes"]
+let usageLine = "usage: qlc-led-bridge [--palette FILE] [--unlock FILE] " +
+                "[--print-palette FILE] [--simulate-notes FILE]"
+
+/// Every argument must be one of the flags above, each taking its file next.
+/// An unrecognized flag - or the bridge's old positional unlock-file argument
+/// - used to be ignored silently; now either one stops the bridge with a
+/// usage line, same as a flag missing its file already does.
+func validateArguments() {
+    let args = Array(CommandLine.arguments.dropFirst())
+    var i = 0
+    while i < args.count {
+        guard knownFlags.contains(args[i]) else {
+            fail("unrecognized argument '\(args[i])'\n\(usageLine)")
+        }
+        i += 2
+    }
+}
+validateArguments()
 
 let exeDir = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
 
@@ -181,6 +208,47 @@ func unlockPackets() -> [[UInt8]] {
         }
     }
     return []
+}
+
+/// A flat stream of hex bytes, one MIDI message per line (e.g. `90 24 7F`),
+/// the same shape `gatt_unlock.txt` already uses. `--simulate-notes` reads
+/// its file this way.
+func readHexBytes(_ path: String) -> [UInt8] {
+    guard let text = try? String(contentsOfFile: path, encoding: .utf8) else {
+        fail("cannot read \(path)")
+    }
+    return text.split(separator: "\n").flatMap { line in
+        line.split(separator: " ").compactMap { UInt8($0, radix: 16) }
+    }
+}
+
+struct NotePaint {
+    let note: Int
+    let label: String
+    let on: Bool
+    let colour: (UInt8, UInt8, UInt8)
+}
+
+/// What a raw MIDI byte stream would paint: a NoteOn with velocity > 0 lights
+/// a palette note ACTIVE, anything else (NoteOff, or NoteOn velocity 0) dims
+/// it to idle. `Bridge.handleMIDI` uses this on live CoreMIDI input, and
+/// `--simulate-notes` uses it on a file - the same decision either way, so a
+/// check made without the pad cannot drift from what the pad would see.
+func notePaints(_ b: [UInt8], _ palette: [Int: PadColors]) -> [NotePaint] {
+    var events: [NotePaint] = []
+    var i = 0
+    while i + 2 < b.count {
+        let status = b[i] & 0xF0
+        guard status == 0x90 || status == 0x80 else { i += 1; continue }
+        let note = Int(b[i+1]), vel = b[i+2]
+        if let colours = palette[note] {
+            let on = (status == 0x90 && vel > 0)
+            events.append(NotePaint(note: note, label: colours.label, on: on,
+                                     colour: on ? colours.active : colours.idle))
+        }
+        i += 3
+    }
+    return events
 }
 
 final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
@@ -272,25 +340,32 @@ final class Bridge: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
         print("virtual MIDI destination 'SMC-PAD LED Bridge' is live")
     }
     func handleMIDI(_ b: [UInt8]) {
-        var i = 0
-        while i + 2 < b.count {
-            let status = b[i] & 0xF0
-            guard status == 0x90 || status == 0x80 else { i += 1; continue }
-            let note = Int(b[i+1]), vel = b[i+2]
-            if let colours = palette[note] {
-                let on = (status == 0x90 && vel > 0)
-                let c = on ? colours.active : colours.idle
-                print("MIDI in: note \(note) -> \(colours.label) \(on ? "ACTIVE" : "idle")" +
-                      (ready ? "" : " (session NOT ready, dropped)"))
-                DispatchQueue.main.async { self.write(noteAddress(note), c.0, c.1, c.2) }
-            }
-            i += 3
+        for paint in notePaints(b, palette) {
+            print("MIDI in: note \(paint.note) -> \(paint.label) \(paint.on ? "ACTIVE" : "idle")" +
+                  (ready ? "" : " (session NOT ready, dropped)"))
+            let c = paint.colour
+            DispatchQueue.main.async { self.write(noteAddress(paint.note), c.0, c.1, c.2) }
         }
     }
 }
 
 if let path = option("--print-palette") {
     printPalette(loadPalette(path))
+    exit(0)
+}
+
+/// What the NoteOn/NoteOff feedback QLC+ sends would paint, without a pad or
+/// a MIDI port: reads a palette and a file of raw MIDI bytes (one message per
+/// line, e.g. `90 24 7F`) and prints each note's decision through the same
+/// `notePaints` the live bridge uses. Touches no Bluetooth and no CoreMIDI.
+if let notesPath = option("--simulate-notes") {
+    let palette = loadPalette(palettePath())
+    let events = notePaints(readHexBytes(notesPath), palette)
+    if events.isEmpty { print("no palette notes in \(notesPath)") }
+    for e in events {
+        print("note \(e.note)  \(e.label)  \(e.on ? "ACTIVE" : "idle")  " +
+              "\(e.colour.0),\(e.colour.1),\(e.colour.2)")
+    }
     exit(0)
 }
 

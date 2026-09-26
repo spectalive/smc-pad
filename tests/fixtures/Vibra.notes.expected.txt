@@ -1,0 +1,4 @@
+note 36  bank 1 pad 1  ACTIVE  255,255,255
+note 36  bank 1 pad 1  idle  42,42,42
+note 37  bank 1 pad 2  idle  42,6,6
+note 67  bank 2 pad 16  ACTIVE  0,255,128

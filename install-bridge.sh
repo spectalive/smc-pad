@@ -66,10 +66,12 @@ LOG="$HOME/Library/Logs/smc-pad-led-bridge.log"
 # another label. Two bridges would fight over the pad's one BLE session, so
 # the old one has to go first - by hand, because it is not ours to remove.
 OLD_PLIST="$HOME/Library/LaunchAgents/com.vibra.smc-pad-led-bridge.plist"
-if [ -e "$OLD_PLIST" ]; then
-    echo "An older bridge is installed ($OLD_PLIST). Remove it first:" >&2
-    echo "  launchctl bootout gui/$UID/com.vibra.smc-pad-led-bridge" >&2
-    echo "  rm \"$OLD_PLIST\"" >&2
+OLD_APP_DIR="$HOME/Library/Application Support/Vibra"
+if [ -e "$OLD_PLIST" ] || [ -e "$OLD_APP_DIR" ]; then
+    echo "An older bridge is installed. Remove it first:" >&2
+    [ -e "$OLD_PLIST" ] && echo "  launchctl bootout gui/$UID/com.vibra.smc-pad-led-bridge" >&2
+    [ -e "$OLD_PLIST" ] && echo "  rm \"$OLD_PLIST\"" >&2
+    [ -e "$OLD_APP_DIR" ] && echo "  rm -rf \"$OLD_APP_DIR\"" >&2
     exit 1
 fi
 

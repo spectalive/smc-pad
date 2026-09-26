@@ -87,11 +87,13 @@ swiftc -O qlc_led_bridge.swift -o qlc-led-bridge
 | `--palette FILE` | The pad palette. Without it, the bridge reads `palette.json` from its bundle's `Resources`, and stops if there is none. |
 | `--unlock FILE` | The session unlock. Without it: the bundle's `Resources`, then `reference/gatt_unlock.txt`. |
 | `--print-palette FILE` | Parse the palette as the bridge does, print one line per note (pad, flash address, active, idle, control) and exit. Touches no Bluetooth and no MIDI. |
+| `--simulate-notes FILE` | Read a palette (`--palette`, as above) and a file of raw MIDI bytes, one message per line (e.g. `90 24 7F`), and print what each NoteOn/NoteOff would paint - the same decision `handleMIDI` makes on live CoreMIDI input. Touches no Bluetooth and no MIDI. |
 
-`tests/test_print_palette.sh` compiles the bridge and runs that mode on
+`tests/test_print_palette.sh` compiles the bridge and runs both modes: `--print-palette` on
 `tests/fixtures/Vibra.pads.json` (written by `qlctool pad-palette` from the
-Vibra show's `Vibra.qxw`) against its expected reading, then checks each
-refusal.
+Vibra show's `Vibra.qxw`) against its expected reading, and `--simulate-notes` on
+`tests/fixtures/Vibra.notes.txt` against `Vibra.notes.expected.txt`; then it
+checks each refusal, including an unrecognized argument.
 
 ## The tools
 
