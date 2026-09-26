@@ -53,6 +53,12 @@ struct PadPalette: Decodable {
     let pads: [Pad]
 }
 
+/// Read before the rest, so a file of another format is refused as such and
+/// not as a shape this bridge does not know.
+struct PaletteFormat: Decodable {
+    let format: Int
+}
+
 struct PadColors {
     let active: (UInt8, UInt8, UInt8)
     let idle: (UInt8, UInt8, UInt8)
@@ -82,14 +88,20 @@ func loadPalette(_ path: String) -> [Int: PadColors] {
     guard let data = FileManager.default.contents(atPath: path) else {
         fail("cannot read the pad palette \(path)")
     }
+    let format: Int
+    do {
+        format = try JSONDecoder().decode(PaletteFormat.self, from: data).format
+    } catch {
+        fail("\(path) is not a pad palette: \(error)")
+    }
+    guard format == 1 else {
+        fail("\(path) is pad palette format \(format); this bridge reads format 1 only")
+    }
     let palette: PadPalette
     do {
         palette = try JSONDecoder().decode(PadPalette.self, from: data)
     } catch {
         fail("\(path) is not a pad palette: \(error)")
-    }
-    guard palette.format == 1 else {
-        fail("\(path) is pad palette format \(palette.format); this bridge reads format 1 only")
     }
     var byNote: [Int: PadColors] = [:]
     for pad in palette.pads {

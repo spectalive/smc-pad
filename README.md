@@ -338,5 +338,12 @@ The note->address map is one 26-byte record per note slot,
 Colours are per function, not per state: the palette gives each pad an
 `active` colour, painted while QLC+ reports its widget on, and an `idle` one,
 painted otherwise. Both come from the show's `qlctool pad-palette` file, which
-the toolkit writes from the same colours it paints the console buttons with,
-so there is nothing here to keep in step by hand.
+the toolkit writes from the pad profile's colours, so there is nothing here to
+keep in step by hand. Most pad-bound console buttons wear the same colour;
+a few page-2 controls wear their page's colour on the console instead.
+
+## Licence
+
+Apache-2.0 (`LICENSE`), except `reference/mac-decompile/`: a disassembly of
+M-VAVE's MidiSuite app, kept as evidence for the protocol notes and not
+covered by this licence. See `NOTICE`.

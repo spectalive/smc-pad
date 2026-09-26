@@ -46,6 +46,16 @@ refuses note-twice 's/"note": 37,/"note": 36,/'
 refuses channel-over-255 '1,/^    255,$/s/^    255,$/    256,/'
 refuses not-json '1s/{/[/'
 
+# A later format may change the shape too: it is refused by its number.
+printf '{"format": 2, "notes": {}}\n' > "$WORK/format-2-new-shape.json"
+if "$BRIDGE" --print-palette "$WORK/format-2-new-shape.json" > /dev/null 2> "$WORK/new-shape.err"; then
+    echo "FAIL format-2-new-shape: accepted"; failures=$((failures + 1))
+elif grep -q "format 2" "$WORK/new-shape.err"; then
+    echo "ok   format-2-new-shape: $(cat "$WORK/new-shape.err")"
+else
+    echo "FAIL format-2-new-shape: $(cat "$WORK/new-shape.err")"; failures=$((failures + 1))
+fi
+
 if "$BRIDGE" --print-palette "$WORK/missing.json" > /dev/null 2>&1; then
     echo "FAIL a missing file was accepted"; failures=$((failures + 1))
 else

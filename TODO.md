@@ -25,3 +25,19 @@
   step: run `python3 -m pytest reference/test_color_cmd.py` next to
   `tests/test_print_palette.sh`, or say here that they are kept as history
   only.
+- [ ] **A changed palette may cost the Bluetooth grant again (review,
+  2026-09-26, unverified).** `install-bridge.sh` copies the palette into the
+  bundle before the ad-hoc signature, so a new palette changes the code
+  signature's hash, and macOS may ask for Bluetooth again from a Finder
+  launch. Smallest next step: check it during the first install; if it asks,
+  read the palette from a fixed path in the support folder, outside the
+  signed bundle.
+- [ ] **NoteOn/NoteOff painting has no check without the pad (review,
+  2026-09-26).** `--print-palette` covers parsing only. Smallest next step: a
+  mode that feeds MIDI notes and prints the colour each would paint.
+- [ ] **Small rough edges from the review (2026-09-26).** A channel of 256 is
+  refused by the JSON parser, not by the bridge's own range check, so the
+  message is Foundation's; unknown flags and the old positional unlock
+  argument are ignored silently; the installer's refusal of an old
+  `com.vibra` agent does not mention the leftover
+  `~/Library/Application Support/Vibra/` bundle.
