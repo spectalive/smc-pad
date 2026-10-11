@@ -1,5 +1,13 @@
 # TODO
 
+> Consolidated from the accessible agent conversation history of this
+> project. Last reviewed: 2026-10-12. History coverage: Partial. Not re-audited
+> during the 2026-10-12 format migration.
+>
+> States: `[ ]` pending · `[~]` partial or unverified · `[!]` blocked · `[x]`
+> verified complete · `[-]` obsolete or superseded. Closed work moves to
+> `TODO_LOG.md`.
+
 - [ ] **Install and verify with the physical pad (2026-09-26).** The bridge
   now reads its palette from a `qlctool pad-palette` file, and that path has
   only been checked without the pad: `tests/test_print_palette.sh` compiles it

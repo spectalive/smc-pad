@@ -6,6 +6,8 @@
 > States: `[x]` verified complete - `[-]` obsolete or superseded. Every entry
 > carries the evidence that closed it, never a transcript.
 
+<!-- tadu:log v1 since 2026-10-12 -->
+
 ## 2026
 
 ### 2026-09
