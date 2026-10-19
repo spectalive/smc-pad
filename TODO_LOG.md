@@ -46,3 +46,15 @@
   (`swiftc -O qlc_led_bridge.swift`, no warnings); tag `v0.1.2`. Not done:
   installing on the pad, and Bluetooth - out of scope for this round (no
   install, no Bluetooth).
+
+### 2026-10
+
+- [x] 2026-10-19 — **General:** **`reference/` has three Python scripts outside any gate (from
+  vibra-lighting).** `color_cmd.py`, `decode_preset.py` and
+  `test_color_cmd.py` are the protocol's worked examples and their test; the
+  7 tests pass under pytest (2026-09-26), but nothing runs them. Smallest next
+  step: run `python3 -m pytest reference/test_color_cmd.py` next to
+  `tests/test_print_palette.sh`, or say here that they are kept as history
+  only.
+  - Result: tests/test_print_palette.sh now runs reference/test_color_cmd.py (python3 -m unittest; the system python3 has no pytest). decode_preset.py stays a worked example without a test.
+  - Evidence: bash tests/test_print_palette.sh -> 'ok   reference/test_color_cmd.py: Ran 7 tests', 'all passed', exit 0; an appended failing test made it print 'FAIL reference/test_color_cmd.py' and '1 failed'

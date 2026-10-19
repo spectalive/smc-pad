@@ -113,6 +113,16 @@ else
     echo "ok   a missing file is refused"
 fi
 
+# The protocol's worked example, reference/color_cmd.py, and its unit test.
+# unittest, not pytest: the system python3 ships without pytest.
+if (cd "$HERE/../reference" && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -q test_color_cmd) \
+    2> "$WORK/color_cmd.err"; then
+    echo "ok   reference/test_color_cmd.py: $(tail -n 3 "$WORK/color_cmd.err" | head -n 1)"
+else
+    cat "$WORK/color_cmd.err"
+    echo "FAIL reference/test_color_cmd.py"; failures=$((failures + 1))
+fi
+
 if [ "$failures" -ne 0 ]; then
     echo "$failures failed"
     exit 1

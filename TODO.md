@@ -26,13 +26,6 @@
   it loads the workspace. The show keeps running; the pads stop updating.
   Smallest next step: find out whether a CoreMIDI endpoint created with a fixed
   `kMIDIPropertyUniqueID` survives a restart as the same port for QLC+.
-- [ ] **`reference/` has three Python scripts outside any gate (from
-  vibra-lighting).** `color_cmd.py`, `decode_preset.py` and
-  `test_color_cmd.py` are the protocol's worked examples and their test; the
-  7 tests pass under pytest (2026-09-26), but nothing runs them. Smallest next
-  step: run `python3 -m pytest reference/test_color_cmd.py` next to
-  `tests/test_print_palette.sh`, or say here that they are kept as history
-  only.
 - [ ] **A changed palette may cost the Bluetooth grant again (review,
   2026-09-26, unverified).** `install-bridge.sh` copies the palette into the
   bundle before the ad-hoc signature, so a new palette changes the code

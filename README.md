@@ -93,7 +93,9 @@ swiftc -O qlc_led_bridge.swift -o qlc-led-bridge
 `tests/fixtures/Vibra.pads.json` (written by `qlctool pad-palette` from the
 Vibra show's `Vibra.qxw`) against its expected reading, and `--simulate-notes` on
 `tests/fixtures/Vibra.notes.txt` against `Vibra.notes.expected.txt`; then it
-checks each refusal, including an unrecognized argument.
+checks each refusal, including an unrecognized argument. Last, it runs
+`reference/test_color_cmd.py`, the unit test of the protocol's worked example
+`reference/color_cmd.py`, with `python3 -m unittest`.
 
 ## The tools
 
