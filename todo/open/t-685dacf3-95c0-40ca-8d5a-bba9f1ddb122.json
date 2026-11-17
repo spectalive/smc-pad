@@ -1,0 +1,17 @@
+{
+  "tadu": 2,
+  "id": "t-685dacf3-95c0-40ca-8d5a-bba9f1ddb122",
+  "title": "**A changed palette may cost the Bluetooth grant again (review,",
+  "state": "pending",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "2026-09-26, unverified).** `install-bridge.sh` copies the palette into the",
+    "bundle before the ad-hoc signature, so a new palette changes the code",
+    "signature's hash, and macOS may ask for Bluetooth again from a Finder",
+    "launch. Smallest next step: check it during the first install; if it asks,",
+    "read the palette from a fixed path in the support folder, outside the",
+    "signed bundle."
+  ]
+}

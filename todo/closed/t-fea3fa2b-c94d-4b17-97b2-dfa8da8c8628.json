@@ -1,0 +1,24 @@
+{
+  "tadu": 2,
+  "id": "t-fea3fa2b-c94d-4b17-97b2-dfa8da8c8628",
+  "title": "2026-09-26 - **NoteOn/NoteOff painting now has a check without the",
+  "state": "done",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "pad.** `--simulate-notes FILE` reads a palette and a file of raw MIDI",
+    "bytes (one message per line, e.g. `90 24 7F`) and prints what each note",
+    "would paint, through the same `notePaints` function `Bridge.handleMIDI`",
+    "uses on live CoreMIDI input - the check exercises the live decision, not a",
+    "reimplementation of it. `tests/test_print_palette.sh` runs it on the new",
+    "fixtures `tests/fixtures/Vibra.notes.txt` / `Vibra.notes.expected.txt`",
+    "(NoteOn, NoteOff, NoteOn velocity 0, and a note outside the palette all",
+    "covered) and diffs the result."
+  ],
+  "closed": "2026-11-17",
+  "result": "2026-09-26 - **NoteOn/NoteOff painting now has a check without the",
+  "evidence": [
+    "legacy item migrated to format 2 without a recorded evidence"
+  ]
+}

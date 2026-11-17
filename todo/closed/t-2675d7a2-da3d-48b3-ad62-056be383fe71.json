@@ -1,0 +1,22 @@
+{
+  "tadu": 2,
+  "id": "t-2675d7a2-da3d-48b3-ad62-056be383fe71",
+  "title": "**`reference/` has three Python scripts outside any gate (from",
+  "state": "done",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "vibra-lighting).** `color_cmd.py`, `decode_preset.py` and",
+    "`test_color_cmd.py` are the protocol's worked examples and their test; the",
+    "7 tests pass under pytest (2026-09-26), but nothing runs them. Smallest next",
+    "step: run `python3 -m pytest reference/test_color_cmd.py` next to",
+    "`tests/test_print_palette.sh`, or say here that they are kept as history",
+    "only."
+  ],
+  "closed": "2026-10-19",
+  "result": "tests/test_print_palette.sh now runs reference/test_color_cmd.py (python3 -m unittest; the system python3 has no pytest). decode_preset.py stays a worked example without a test.",
+  "evidence": [
+    "bash tests/test_print_palette.sh -> 'ok   reference/test_color_cmd.py: Ran 7 tests', 'all passed', exit 0; an appended failing test made it print 'FAIL reference/test_color_cmd.py' and '1 failed'"
+  ]
+}

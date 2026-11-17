@@ -1,0 +1,16 @@
+{
+  "tadu": 2,
+  "id": "t-4d000efd-977d-4775-8393-a3d99744178c",
+  "title": "**A restarted bridge costs QLC+'s feedback until the workspace is",
+  "state": "pending",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "reloaded (from vibra-lighting, 2026-08-29).** The virtual MIDI endpoint gets",
+    "a new identity on every start, and QLC+ resolves its feedback patch only when",
+    "it loads the workspace. The show keeps running; the pads stop updating.",
+    "Smallest next step: find out whether a CoreMIDI endpoint created with a fixed",
+    "`kMIDIPropertyUniqueID` survives a restart as the same port for QLC+."
+  ]
+}

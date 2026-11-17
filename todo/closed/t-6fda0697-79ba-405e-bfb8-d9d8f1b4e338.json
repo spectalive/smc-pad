@@ -1,0 +1,21 @@
+{
+  "tadu": 2,
+  "id": "t-6fda0697-79ba-405e-bfb8-d9d8f1b4e338",
+  "title": "2026-09-26 - **Unknown flags, and the bridge's old positional",
+  "state": "done",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "unlock-file argument, are refused with a usage line instead of being",
+    "ignored.** `validateArguments()` walks `CommandLine.arguments` and fails",
+    "on anything that is not one of the four known `--flag FILE` pairs.",
+    "`tests/test_print_palette.sh` checks both `--bogus-flag foo` and a bare",
+    "positional path are refused with a `usage:` line."
+  ],
+  "closed": "2026-11-17",
+  "result": "2026-09-26 - **Unknown flags, and the bridge's old positional",
+  "evidence": [
+    "legacy item migrated to format 2 without a recorded evidence"
+  ]
+}

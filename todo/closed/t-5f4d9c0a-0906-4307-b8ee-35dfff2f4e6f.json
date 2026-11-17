@@ -1,0 +1,25 @@
+{
+  "tadu": 2,
+  "id": "t-5f4d9c0a-0906-4307-b8ee-35dfff2f4e6f",
+  "title": "2026-09-26 - **The installer's refusal of an old `com.vibra` agent now",
+  "state": "done",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "also names the leftover `~/Library/Application Support/Vibra/` bundle.**",
+    "`install-bridge.sh` checks for that directory alongside the old plist and",
+    "lists `rm -rf` for it in the refusal. `bash -n install-bridge.sh` passes;",
+    "neither path exists on this machine, so nothing was removed.",
+    "",
+    "Evidence for all four: `tests/test_print_palette.sh` passes 13/13 checks",
+    "(`swiftc -O qlc_led_bridge.swift`, no warnings); tag `v0.1.2`. Not done:",
+    "installing on the pad, and Bluetooth - out of scope for this round (no",
+    "install, no Bluetooth)."
+  ],
+  "closed": "2026-11-17",
+  "result": "2026-09-26 - **The installer's refusal of an old `com.vibra` agent now",
+  "evidence": [
+    "legacy item migrated to format 2 without a recorded evidence"
+  ]
+}

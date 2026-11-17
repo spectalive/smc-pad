@@ -1,0 +1,22 @@
+{
+  "tadu": 2,
+  "id": "t-7a3e955c-47fe-40a0-b566-2eb28e937c5a",
+  "title": "2026-09-26 - **A channel of 256 is now refused by the bridge's own",
+  "state": "done",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "range check.** `PadPalette.Pad.active`/`idle` decode as `[Int]` instead of",
+    "`[UInt8]`, and `rgb()` checks each channel against `0...255` itself before",
+    "narrowing to `UInt8`; the message is now `\"... channel 256 is outside",
+    "0-255\"` rather than whatever Foundation's JSON decoder raised for the",
+    "`UInt8` overflow. `tests/test_print_palette.sh` asserts the refusal text",
+    "contains \"outside 0-255\"."
+  ],
+  "closed": "2026-11-17",
+  "result": "2026-09-26 - **A channel of 256 is now refused by the bridge's own",
+  "evidence": [
+    "legacy item migrated to format 2 without a recorded evidence"
+  ]
+}

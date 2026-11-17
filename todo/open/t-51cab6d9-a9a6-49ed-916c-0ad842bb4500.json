@@ -1,0 +1,24 @@
+{
+  "tadu": 2,
+  "id": "t-51cab6d9-a9a6-49ed-916c-0ad842bb4500",
+  "title": "Install and verify with the physical pad (2026-09-26)",
+  "state": "pending",
+  "category": "general",
+  "type": "untriaged",
+  "priority": "untriaged",
+  "notes": [
+    "The bridge",
+    "",
+    "now reads its palette from a `qlctool pad-palette` file, and that path has",
+    "only been checked without the pad: `tests/test_print_palette.sh` compiles it",
+    "and reads the Vibra palette as the old hard-coded arrays painted it (all 32",
+    "notes, active and idle). It is installed nowhere: the install needs the pad",
+    "in reach and a human to accept macOS's Bluetooth prompt. Smallest next step:",
+    "on the machine that runs the show, remove any old",
+    "`com.vibra.smc-pad-led-bridge` agent, run",
+    "`./install-bridge.sh \"<show>.pads.json\"`, open the app once from the Finder",
+    "and grant Bluetooth, reload the workspace in QLC+, then press a pad and see",
+    "it go from its idle colour to its active one (log: `pad palette: ... 32",
+    "pads`, `pad connected`, `MIDI in: note ...`)."
+  ]
+}
